@@ -36,12 +36,16 @@ export const LoginForm: React.FC = () => {
     }));
   };
 
-  const handleDemoLogin = async () => {
+  const handleDemoLogin = async (role: 'patient' | 'doctor') => {
     setIsLoading(true);
     setError('');
     
+    const credentials = role === 'doctor' 
+      ? { email: 'doctor@healthwise.com', password: 'demo123' }
+      : { email: 'patient@healthwise.com', password: 'demo123' };
+    
     try {
-      await login('patient@healthwise.com', 'demo123');
+      await login(credentials.email, credentials.password);
     } catch (err) {
       setError('Demo login failed');
     } finally {
@@ -68,20 +72,43 @@ export const LoginForm: React.FC = () => {
           <CardContent>
             {/* Demo Credentials Info */}
             <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <h4 className="text-sm font-medium text-blue-900 mb-2">Demo Credentials</h4>
-              <div className="text-sm text-blue-800 space-y-1">
-                <p><strong>Email:</strong> patient@healthwise.com</p>
-                <p><strong>Password:</strong> demo123</p>
+              <h4 className="text-sm font-medium text-blue-900 mb-3">Demo Accounts</h4>
+              
+              <div className="space-y-3">
+                <div className="p-3 bg-white rounded border">
+                  <div className="text-sm text-blue-800 space-y-1 mb-2">
+                    <p><strong>Patient Account:</strong></p>
+                    <p>Email: patient@healthwise.com</p>
+                    <p>Password: demo123</p>
+                  </div>
+                  <Button 
+                    onClick={() => handleDemoLogin('patient')}
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full border-blue-300 text-blue-700 hover:bg-blue-100"
+                    isLoading={isLoading}
+                  >
+                    Login as Patient
+                  </Button>
+                </div>
+                
+                <div className="p-3 bg-white rounded border">
+                  <div className="text-sm text-blue-800 space-y-1 mb-2">
+                    <p><strong>Doctor Account:</strong></p>
+                    <p>Email: doctor@healthwise.com</p>
+                    <p>Password: demo123</p>
+                  </div>
+                  <Button 
+                    onClick={() => handleDemoLogin('doctor')}
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full border-green-300 text-green-700 hover:bg-green-100"
+                    isLoading={isLoading}
+                  >
+                    Login as Doctor
+                  </Button>
+                </div>
               </div>
-              <Button 
-                onClick={handleDemoLogin}
-                variant="outline" 
-                size="sm" 
-                className="mt-3 w-full border-blue-300 text-blue-700 hover:bg-blue-100"
-                isLoading={isLoading}
-              >
-                Quick Demo Login
-              </Button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">

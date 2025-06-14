@@ -4,6 +4,7 @@ import { AuthContext, useAuthProvider } from './hooks/useAuth';
 import { Layout } from './components/layout/Layout';
 import { LoginForm } from './components/auth/LoginForm';
 import { Dashboard } from './pages/Dashboard';
+import { DoctorDashboard } from './pages/DoctorDashboard';
 import { TestResults } from './pages/TestResults';
 import { Appointments } from './pages/Appointments';
 import { Doctors } from './pages/Doctors';
@@ -43,7 +44,15 @@ function App() {
           ) : (
             <Layout>
               <Routes>
-                <Route path="/dashboard" element={<Dashboard />} />
+                {/* Route based on user role */}
+                <Route 
+                  path="/dashboard" 
+                  element={
+                    authValue.user?.role === 'doctor' ? 
+                    <DoctorDashboard /> : 
+                    <Dashboard />
+                  } 
+                />
                 <Route path="/results" element={<TestResults />} />
                 <Route path="/appointments" element={<Appointments />} />
                 <Route path="/doctors" element={<Doctors />} />

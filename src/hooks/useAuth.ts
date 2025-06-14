@@ -27,8 +27,14 @@ export const useAuth = () => {
 
 // Default test credentials
 const DEFAULT_CREDENTIALS = {
-  email: 'patient@healthwise.com',
-  password: 'demo123',
+  patient: {
+    email: 'patient@healthwise.com',
+    password: 'demo123',
+  },
+  doctor: {
+    email: 'doctor@healthwise.com',
+    password: 'demo123',
+  }
 };
 
 // Mock implementation for demonstration
@@ -60,15 +66,44 @@ export const useAuthProvider = (): AuthContextType => {
       // Mock API call
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Check for default credentials or accept any email/password for demo
-      if ((email === DEFAULT_CREDENTIALS.email && password === DEFAULT_CREDENTIALS.password) || 
-          (email && password)) {
-        
-        const mockUser: User = {
+      let mockUser: User;
+      
+      // Check for doctor credentials
+      if (email === DEFAULT_CREDENTIALS.doctor.email && password === DEFAULT_CREDENTIALS.doctor.password) {
+        mockUser = {
+          id: '2',
+          email,
+          firstName: 'Dr. Michael',
+          lastName: 'Smith',
+          dateOfBirth: '1980-01-01',
+          phone: '+1234567890',
+          role: 'doctor',
+          preferences: {
+            language: 'en',
+            notifications: {
+              email: true,
+              sms: true,
+              push: true,
+            },
+            privacy: {
+              shareWithProviders: true,
+              shareForResearch: false,
+              marketingCommunications: false,
+            },
+          },
+          twoFactorEnabled: false,
+          biometricEnabled: false,
+          consentHistory: [],
+        };
+      }
+      // Check for patient credentials or accept any email/password for demo
+      else if ((email === DEFAULT_CREDENTIALS.patient.email && password === DEFAULT_CREDENTIALS.patient.password) || 
+               (email && password)) {
+        mockUser = {
           id: '1',
           email,
-          firstName: email === DEFAULT_CREDENTIALS.email ? 'Sarah' : 'John',
-          lastName: email === DEFAULT_CREDENTIALS.email ? 'Johnson' : 'Doe',
+          firstName: email === DEFAULT_CREDENTIALS.patient.email ? 'Sarah' : 'John',
+          lastName: email === DEFAULT_CREDENTIALS.patient.email ? 'Johnson' : 'Doe',
           dateOfBirth: '1990-01-01',
           phone: '+1234567890',
           role: 'patient',
@@ -89,12 +124,12 @@ export const useAuthProvider = (): AuthContextType => {
           biometricEnabled: false,
           consentHistory: [],
         };
-        
-        setUser(mockUser);
-        localStorage.setItem('healthwise_user', JSON.stringify(mockUser));
       } else {
         throw new Error('Invalid credentials');
       }
+      
+      setUser(mockUser);
+      localStorage.setItem('healthwise_user', JSON.stringify(mockUser));
     } catch (error) {
       throw new Error('Login failed');
     } finally {

@@ -13,9 +13,14 @@ import {
   Bell,
   HelpCircle,
   Heart,
+  Stethoscope,
+  UserCheck,
+  MessageSquare,
+  BarChart3,
 } from 'lucide-react';
+import { useAuth } from '../../hooks/useAuth';
 
-const navigation = [
+const patientNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
   { name: 'Test Results', href: '/results', icon: FileText },
   { name: 'Appointments', href: '/appointments', icon: Calendar },
@@ -23,6 +28,16 @@ const navigation = [
   { name: 'Health Tracking', href: '/tracking', icon: Activity },
   { name: 'Learn', href: '/learn', icon: BookOpen },
   { name: 'Community', href: '/community', icon: Heart },
+];
+
+const doctorNavigation = [
+  { name: 'Dashboard', href: '/dashboard', icon: Home },
+  { name: 'Patients', href: '/patients', icon: UserCheck },
+  { name: 'Appointments', href: '/appointments', icon: Calendar },
+  { name: 'Lab Results', href: '/results', icon: FileText },
+  { name: 'Messages', href: '/messages', icon: MessageSquare },
+  { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+  { name: 'Resources', href: '/learn', icon: BookOpen },
 ];
 
 const secondaryNavigation = [
@@ -38,6 +53,9 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
+  const { user } = useAuth();
+  const navigation = user?.role === 'doctor' ? doctorNavigation : patientNavigation;
+
   return (
     <>
       {/* Mobile backdrop */}
@@ -60,11 +78,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           <div className="flex items-center px-6 py-4 border-b border-gray-200">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <Heart className="w-8 h-8 text-primary-600" />
+                {user?.role === 'doctor' ? (
+                  <Stethoscope className="w-8 h-8 text-primary-600" />
+                ) : (
+                  <Heart className="w-8 h-8 text-primary-600" />
+                )}
               </div>
               <div className="ml-3">
                 <h1 className="text-xl font-bold text-gray-900">HealthWise</h1>
-                <p className="text-sm text-gray-500">Your Health, Simplified</p>
+                <p className="text-sm text-gray-500">
+                  {user?.role === 'doctor' ? 'Provider Portal' : 'Your Health, Simplified'}
+                </p>
               </div>
             </div>
           </div>
