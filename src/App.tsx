@@ -5,6 +5,7 @@ import { Layout } from './components/layout/Layout';
 import { LoginForm } from './components/auth/LoginForm';
 import { Dashboard } from './pages/Dashboard';
 import { DoctorDashboard } from './pages/DoctorDashboard';
+import { NurseDashboard } from './pages/NurseDashboard';
 import { TestResults } from './pages/TestResults';
 import { Appointments } from './pages/Appointments';
 import { Doctors } from './pages/Doctors';
@@ -50,6 +51,8 @@ function App() {
                   element={
                     authValue.user?.role === 'doctor' ? 
                     <DoctorDashboard /> : 
+                    authValue.user?.role === 'nurse' ?
+                    <NurseDashboard /> :
                     <Dashboard />
                   } 
                 />
