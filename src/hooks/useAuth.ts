@@ -34,6 +34,10 @@ const DEFAULT_CREDENTIALS = {
   doctor: {
     email: 'doctor@healthwise.com',
     password: 'demo123',
+  },
+  nurse: {
+    email: 'nurse@healthwise.com',
+    password: 'demo123',
   }
 };
 
@@ -78,6 +82,34 @@ export const useAuthProvider = (): AuthContextType => {
           dateOfBirth: '1980-01-01',
           phone: '+1234567890',
           role: 'doctor',
+          preferences: {
+            language: 'en',
+            notifications: {
+              email: true,
+              sms: true,
+              push: true,
+            },
+            privacy: {
+              shareWithProviders: true,
+              shareForResearch: false,
+              marketingCommunications: false,
+            },
+          },
+          twoFactorEnabled: false,
+          biometricEnabled: false,
+          consentHistory: [],
+        };
+      }
+      // Check for nurse credentials
+      else if (email === DEFAULT_CREDENTIALS.nurse.email && password === DEFAULT_CREDENTIALS.nurse.password) {
+        mockUser = {
+          id: '3',
+          email,
+          firstName: 'Jessica',
+          lastName: 'Martinez',
+          dateOfBirth: '1985-03-15',
+          phone: '+1234567891',
+          role: 'nurse',
           preferences: {
             language: 'en',
             notifications: {

@@ -36,16 +36,18 @@ export const LoginForm: React.FC = () => {
     }));
   };
 
-  const handleDemoLogin = async (role: 'patient' | 'doctor') => {
+  const handleDemoLogin = async (role: 'patient' | 'doctor' | 'nurse') => {
     setIsLoading(true);
     setError('');
     
-    const credentials = role === 'doctor' 
-      ? { email: 'doctor@healthwise.com', password: 'demo123' }
-      : { email: 'patient@healthwise.com', password: 'demo123' };
+    const credentials = {
+      patient: { email: 'patient@healthwise.com', password: 'demo123' },
+      doctor: { email: 'doctor@healthwise.com', password: 'demo123' },
+      nurse: { email: 'nurse@healthwise.com', password: 'demo123' },
+    };
     
     try {
-      await login(credentials.email, credentials.password);
+      await login(credentials[role].email, credentials[role].password);
     } catch (err) {
       setError('Demo login failed');
     } finally {
@@ -106,6 +108,23 @@ export const LoginForm: React.FC = () => {
                     isLoading={isLoading}
                   >
                     Login as Doctor
+                  </Button>
+                </div>
+
+                <div className="p-3 bg-white rounded border">
+                  <div className="text-sm text-blue-800 space-y-1 mb-2">
+                    <p><strong>Nurse Account:</strong></p>
+                    <p>Email: nurse@healthwise.com</p>
+                    <p>Password: demo123</p>
+                  </div>
+                  <Button 
+                    onClick={() => handleDemoLogin('nurse')}
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full border-purple-300 text-purple-700 hover:bg-purple-100"
+                    isLoading={isLoading}
+                  >
+                    Login as Nurse
                   </Button>
                 </div>
               </div>

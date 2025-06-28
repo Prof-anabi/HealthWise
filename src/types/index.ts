@@ -6,7 +6,7 @@ export interface User {
   dateOfBirth: string;
   phone: string;
   avatar?: string;
-  role: 'patient' | 'doctor' | 'admin';
+  role: 'patient' | 'doctor' | 'nurse' | 'admin';
   preferences: {
     language: 'en' | 'es';
     notifications: {
