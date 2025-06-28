@@ -128,7 +128,7 @@ export const useAuthProvider = (): AuthContextType => {
       console.error('💥 Error in fetchUserProfile:', error);
       
       // If it's a timeout or connection error, don't sign out the user
-      if (error instanceof Error && error.message === 'Profile fetch timeout') {
+      if (error instanceof Error && error.message.includes('Profile fetch timeout')) {
         console.log('⏰ Profile fetch timed out, but keeping user signed in');
         setIsLoading(false);
         return null;
