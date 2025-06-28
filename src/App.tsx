@@ -23,12 +23,19 @@ const Help = () => <div className="p-6"><h1 className="text-2xl font-bold">Help 
 function App() {
   const authValue = useAuthProvider();
 
+  console.log('App render - Auth state:', {
+    isLoading: authValue.isLoading,
+    isAuthenticated: authValue.isAuthenticated,
+    user: authValue.user?.email
+  });
+
   if (authValue.isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading HealthWise...</p>
+          <p className="text-xs text-gray-400 mt-2">Checking authentication status...</p>
         </div>
       </div>
     );

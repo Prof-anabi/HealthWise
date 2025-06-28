@@ -41,14 +41,24 @@ export const useAuthProvider = (): AuthContextType => {
     // Get initial session
     const getInitialSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        console.log('Checking initial session...');
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Session error:', error);
+          setIsLoading(false);
+          return;
+        }
         
         if (session?.user) {
+          console.log('Found existing session for user:', session.user.id);
           await fetchUserProfile(session.user.id);
+        } else {
+          console.log('No existing session found');
+          setIsLoading(false);
         }
       } catch (error) {
         console.error('Error getting initial session:', error);
-      } finally {
         setIsLoading(false);
       }
     };
@@ -58,12 +68,21 @@ export const useAuthProvider = (): AuthContextType => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.id);
+        
         if (event === 'SIGNED_IN' && session?.user) {
           await fetchUserProfile(session.user.id);
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
+          setIsLoading(false);
+        } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+          // Don't fetch profile again on token refresh if we already have user data
+          if (!user) {
+            await fetchUserProfile(session.user.id);
+          }
+        } else {
+          setIsLoading(false);
         }
-        setIsLoading(false);
       }
     );
 
@@ -72,38 +91,55 @@ export const useAuthProvider = (): AuthContextType => {
 
   const fetchUserProfile = async (userId: string) => {
     try {
+      console.log('Fetching profile for user:', userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Profile fetch error:', error);
+        // If profile doesn't exist, sign out the user
+        if (error.code === 'PGRST116') {
+          console.log('Profile not found, signing out user');
+          await supabase.auth.signOut();
+          setUser(null);
+        }
+        setIsLoading(false);
+        return;
+      }
+
+      console.log('Profile fetched successfully:', data);
       setUser(data);
+      setIsLoading(false);
     } catch (error) {
       console.error('Error fetching user profile:', error);
       setUser(null);
+      setIsLoading(false);
     }
   };
 
   const login = async (email: string, password: string) => {
     try {
       setIsLoading(true);
+      console.log('Attempting login for:', email);
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) throw error;
-
-      if (data.user) {
-        await fetchUserProfile(data.user.id);
+      if (error) {
+        console.error('Login error:', error);
+        throw error;
       }
+
+      console.log('Login successful for user:', data.user?.id);
+      // Profile will be fetched by the auth state change listener
     } catch (error) {
-      handleSupabaseError(error);
-    } finally {
       setIsLoading(false);
+      handleSupabaseError(error);
     }
   };
 
@@ -157,14 +193,14 @@ export const useAuthProvider = (): AuthContextType => {
         await fetchUserProfile(authData.user.id);
       }
     } catch (error) {
-      handleSupabaseError(error);
-    } finally {
       setIsLoading(false);
+      handleSupabaseError(error);
     }
   };
 
   const logout = async () => {
     try {
+      console.log('Logging out user');
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       setUser(null);
