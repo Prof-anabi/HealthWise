@@ -26,6 +26,7 @@ const patientNavigation = [
   { name: 'Appointments', href: '/appointments', icon: Calendar },
   { name: 'Find Doctors', href: '/doctors', icon: Users },
   { name: 'Health Tracking', href: '/tracking', icon: Activity },
+  { name: 'Messages', href: '/messages', icon: MessageSquare },
   { name: 'Learn', href: '/learn', icon: BookOpen },
   { name: 'Community', href: '/community', icon: Heart },
 ];
@@ -37,6 +38,15 @@ const doctorNavigation = [
   { name: 'Lab Results', href: '/results', icon: FileText },
   { name: 'Messages', href: '/messages', icon: MessageSquare },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+  { name: 'Resources', href: '/learn', icon: BookOpen },
+];
+
+const nurseNavigation = [
+  { name: 'Dashboard', href: '/dashboard', icon: Home },
+  { name: 'Patients', href: '/patients', icon: UserCheck },
+  { name: 'Appointments', href: '/appointments', icon: Calendar },
+  { name: 'Lab Results', href: '/results', icon: FileText },
+  { name: 'Messages', href: '/messages', icon: MessageSquare },
   { name: 'Resources', href: '/learn', icon: BookOpen },
 ];
 
@@ -54,7 +64,16 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { user } = useAuth();
-  const navigation = user?.role === 'doctor' ? doctorNavigation : patientNavigation;
+  
+  const getNavigation = () => {
+    switch (user?.role) {
+      case 'doctor': return doctorNavigation;
+      case 'nurse': return nurseNavigation;
+      default: return patientNavigation;
+    }
+  };
+
+  const navigation = getNavigation();
 
   return (
     <>
@@ -87,7 +106,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               <div className="ml-3">
                 <h1 className="text-xl font-bold text-gray-900">HealthWise</h1>
                 <p className="text-sm text-gray-500">
-                  {user?.role === 'doctor' ? 'Provider Portal' : 'Your Health, Simplified'}
+                  {user?.role === 'doctor' ? 'Provider Portal' : 
+                   user?.role === 'nurse' ? 'Nursing Portal' : 
+                   'Your Health, Simplified'}
                 </p>
               </div>
             </div>

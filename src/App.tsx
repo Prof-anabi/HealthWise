@@ -11,6 +11,7 @@ import { Appointments } from './pages/Appointments';
 import { Doctors } from './pages/Doctors';
 import { Tracking } from './pages/Tracking';
 import { Settings } from './pages/Settings';
+import { Messages } from './pages/Messages';
 
 // Placeholder components for other routes
 const Learn = () => <div className="p-6"><h1 className="text-2xl font-bold">Learn</h1><p className="text-gray-600 mt-2">Educational resources coming soon...</p></div>;
@@ -62,6 +63,7 @@ function App() {
                 <Route path="/tracking" element={<Tracking />} />
                 <Route path="/learn" element={<Learn />} />
                 <Route path="/community" element={<Community />} />
+                <Route path="/messages" element={<Messages />} />
                 <Route path="/notifications" element={<Notifications />} />
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/settings" element={<Settings />} />
