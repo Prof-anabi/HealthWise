@@ -8,6 +8,8 @@ console.log('Supabase configuration check:');
 console.log('URL:', supabaseUrl ? 'Set' : 'Missing');
 console.log('Anon Key:', supabaseAnonKey ? 'Set' : 'Missing');
 
+let supabase: any;
+
 if (!supabaseUrl || !supabaseAnonKey) {
   console.error('Missing Supabase environment variables');
   console.error('VITE_SUPABASE_URL:', supabaseUrl ? 'Set' : 'Missing');
@@ -44,10 +46,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
     }),
   };
   
-  // @ts-ignore
-  export const supabase = mockClient;
+  supabase = mockClient;
 } else {
-  export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+  supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     auth: {
       autoRefreshToken: true,
       persistSession: true,
@@ -60,6 +61,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
     },
   });
 }
+
+export { supabase };
 
 // Helper function to handle Supabase errors
 export const handleSupabaseError = (error: any) => {
