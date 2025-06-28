@@ -42,11 +42,18 @@ export const useAuthProvider = (): AuthContextType => {
     try {
       console.log('🔍 Fetching profile for user ID:', userId);
       
-      const { data, error } = await supabase
+      // Add timeout to the query
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 5000);
+      });
+
+      const queryPromise = supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
+
+      const { data, error } = await Promise.race([queryPromise, timeoutPromise]) as any;
 
       if (error) {
         console.error('❌ Profile fetch error:', error);
@@ -57,12 +64,53 @@ export const useAuthProvider = (): AuthContextType => {
           hint: error.hint
         });
         
-        // If profile doesn't exist, sign out the user
+        // If profile doesn't exist, create a basic one
         if (error.code === 'PGRST116') {
-          console.log('📝 Profile not found, signing out user');
-          await supabase.auth.signOut();
-          setUser(null);
+          console.log('📝 Profile not found, creating basic profile...');
+          
+          // Get user email from auth
+          const { data: { user: authUser } } = await supabase.auth.getUser();
+          
+          if (authUser?.email) {
+            const newProfile = {
+              id: userId,
+              email: authUser.email,
+              first_name: 'User',
+              last_name: 'Demo',
+              role: 'patient' as const,
+              preferences: {
+                privacy: {
+                  shareForResearch: false,
+                  shareWithProviders: true,
+                  marketingCommunications: false
+                },
+                notifications: {
+                  sms: true,
+                  push: true,
+                  email: true
+                }
+              }
+            };
+
+            console.log('🔨 Creating new profile:', newProfile);
+            
+            const { data: createdProfile, error: createError } = await supabase
+              .from('profiles')
+              .insert(newProfile)
+              .select()
+              .single();
+
+            if (createError) {
+              console.error('❌ Failed to create profile:', createError);
+              throw createError;
+            }
+
+            console.log('✅ Profile created successfully:', createdProfile);
+            setUser(createdProfile);
+            return createdProfile;
+          }
         }
+        
         throw error;
       }
 
@@ -78,6 +126,14 @@ export const useAuthProvider = (): AuthContextType => {
       return data;
     } catch (error) {
       console.error('💥 Error in fetchUserProfile:', error);
+      
+      // If it's a timeout or connection error, don't sign out the user
+      if (error instanceof Error && error.message === 'Profile fetch timeout') {
+        console.log('⏰ Profile fetch timed out, but keeping user signed in');
+        setIsLoading(false);
+        return null;
+      }
+      
       throw error;
     }
   };
@@ -94,7 +150,7 @@ export const useAuthProvider = (): AuthContextType => {
         setIsLoading(false);
         setIsInitialized(true);
       }
-    }, 10000); // 10 second timeout
+    }, 15000); // 15 second timeout
 
     // Get initial session
     const getInitialSession = async () => {
@@ -220,7 +276,7 @@ export const useAuthProvider = (): AuthContextType => {
         } catch (profileError) {
           console.error('❌ Failed to fetch profile after login:', profileError);
           setIsLoading(false);
-          throw profileError;
+          // Don't throw the error here, let the user proceed
         }
       }
     } catch (error) {
