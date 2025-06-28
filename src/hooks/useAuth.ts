@@ -38,11 +38,32 @@ export const useAuthProvider = (): AuthContextType => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+    
+    // Add timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      if (mounted) {
+        console.log('Auth check timeout - setting loading to false');
+        setIsLoading(false);
+      }
+    }, 10000); // 10 second timeout
+
     // Get initial session
     const getInitialSession = async () => {
       try {
-        console.log('Checking initial session...');
+        console.log('Starting auth check...');
+        
+        // Check if Supabase is properly configured
+        if (!supabase) {
+          console.error('Supabase client not initialized');
+          if (mounted) setIsLoading(false);
+          return;
+        }
+
+        console.log('Getting session...');
         const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (!mounted) return;
         
         if (error) {
           console.error('Session error:', error);
@@ -59,7 +80,7 @@ export const useAuthProvider = (): AuthContextType => {
         }
       } catch (error) {
         console.error('Error getting initial session:', error);
-        setIsLoading(false);
+        if (mounted) setIsLoading(false);
       }
     };
 
@@ -68,6 +89,8 @@ export const useAuthProvider = (): AuthContextType => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (!mounted) return;
+        
         console.log('Auth state changed:', event, session?.user?.id);
         
         if (event === 'SIGNED_IN' && session?.user) {
@@ -86,7 +109,11 @@ export const useAuthProvider = (): AuthContextType => {
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      clearTimeout(timeoutId);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const fetchUserProfile = async (userId: string) => {

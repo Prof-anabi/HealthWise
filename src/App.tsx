@@ -36,6 +36,7 @@ function App() {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading HealthWise...</p>
           <p className="text-xs text-gray-400 mt-2">Checking authentication status...</p>
+          <p className="text-xs text-gray-500 mt-1">Check browser console for details</p>
         </div>
       </div>
     );
