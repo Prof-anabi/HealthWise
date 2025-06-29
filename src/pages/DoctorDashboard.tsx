@@ -1524,25 +1524,25 @@ export const DoctorDashboard: React.FC = () => {
                       <div className="text-center">
                         <p className="text-xs text-gray-500 uppercase tracking-wide">Total Cholesterol</p>
                         <p className="text-lg font-bold text-gray-900">185 mg/dL</p>
-                        <p className="text-xs text-gray-600">Normal: <200</p>
+                        <p className="text-xs text-gray-600">Normal: &lt;200</p>
                         <Badge variant="success" size="sm">Normal</Badge>
                       </div>
                       <div className="text-center">
                         <p className="text-xs text-gray-500 uppercase tracking-wide">LDL</p>
                         <p className="text-lg font-bold text-gray-900">95 mg/dL</p>
-                        <p className="text-xs text-gray-600">Normal: <100</p>
+                        <p className="text-xs text-gray-600">Normal: &lt;100</p>
                         <Badge variant="success" size="sm">Normal</Badge>
                       </div>
                       <div className="text-center">
                         <p className="text-xs text-gray-500 uppercase tracking-wide">HDL</p>
                         <p className="text-lg font-bold text-gray-900">55 mg/dL</p>
-                        <p className="text-xs text-gray-600">Normal: >40</p>
+                        <p className="text-xs text-gray-600">Normal: &gt;40</p>
                         <Badge variant="success" size="sm">Normal</Badge>
                       </div>
                       <div className="text-center">
                         <p className="text-xs text-gray-500 uppercase tracking-wide">Triglycerides</p>
                         <p className="text-lg font-bold text-gray-900">120 mg/dL</p>
-                        <p className="text-xs text-gray-600">Normal: <150</p>
+                        <p className="text-xs text-gray-600">Normal: &lt;150</p>
                         <Badge variant="success" size="sm">Normal</Badge>
                       </div>
                     </div>
