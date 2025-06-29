@@ -4,9 +4,16 @@ import type { Database } from '../lib/database.types';
 type Notification = Database['public']['Tables']['notifications']['Row'];
 type NotificationInsert = Database['public']['Tables']['notifications']['Insert'];
 
+export interface NotificationWithMetadata extends Notification {
+  formattedTime?: string;
+  actionLabel?: string;
+  canDismiss?: boolean;
+  requiresAction?: boolean;
+}
+
 export class NotificationService {
   // Get notifications for a user
-  static async getNotifications(userId: string, limit: number = 50): Promise<Notification[]> {
+  static async getNotifications(userId: string, limit: number = 50): Promise<NotificationWithMetadata[]> {
     try {
       const { data, error } = await supabase
         .from('notifications')
@@ -16,7 +23,16 @@ export class NotificationService {
         .limit(limit);
 
       if (error) throw error;
-      return data || [];
+
+      // Enhance notifications with additional metadata
+      const enhancedNotifications = (data || []).map(notification => ({
+        ...notification,
+        canDismiss: notification.notification_type !== 'system',
+        requiresAction: notification.priority === 'urgent' || notification.action_url !== null,
+        actionLabel: this.getActionLabel(notification.notification_type),
+      }));
+
+      return enhancedNotifications;
     } catch (error) {
       handleSupabaseError(error);
       return [];
@@ -50,6 +66,10 @@ export class NotificationService {
         .single();
 
       if (error) throw error;
+
+      // Trigger real-time notification if user is online
+      this.triggerRealTimeNotification(notificationData.user_id, data);
+
       return data;
     } catch (error) {
       handleSupabaseError(error);
@@ -106,21 +126,57 @@ export class NotificationService {
     }
   }
 
+  // Create message notification
+  static async createMessageNotification(
+    recipientId: string,
+    senderName: string,
+    conversationId: string,
+    messagePreview: string,
+    priority: 'normal' | 'high' | 'urgent' = 'normal'
+  ): Promise<void> {
+    await this.createNotification({
+      user_id: recipientId,
+      title: `New message from ${senderName}`,
+      message: messagePreview,
+      notification_type: 'message',
+      priority,
+      action_url: `/messages?conversation=${conversationId}`,
+      metadata: { 
+        conversation_id: conversationId,
+        sender_name: senderName 
+      },
+    });
+  }
+
   // Create appointment reminder notification
   static async createAppointmentReminder(
     userId: string,
     appointmentId: string,
     appointmentDate: string,
-    doctorName: string
+    appointmentTime: string,
+    doctorName: string,
+    reminderType: 'day_before' | 'hour_before' | '15_min_before' = 'day_before'
   ): Promise<void> {
+    const reminderMessages = {
+      day_before: `You have an appointment with ${doctorName} tomorrow at ${appointmentTime}`,
+      hour_before: `Your appointment with ${doctorName} is in 1 hour at ${appointmentTime}`,
+      '15_min_before': `Your appointment with ${doctorName} starts in 15 minutes`
+    };
+
     await this.createNotification({
       user_id: userId,
       title: 'Appointment Reminder',
-      message: `You have an appointment with ${doctorName} tomorrow at ${appointmentDate}`,
+      message: reminderMessages[reminderType],
       notification_type: 'appointment',
-      priority: 'normal',
+      priority: reminderType === '15_min_before' ? 'high' : 'normal',
       action_url: `/appointments`,
-      metadata: { appointment_id: appointmentId },
+      metadata: { 
+        appointment_id: appointmentId,
+        doctor_name: doctorName,
+        appointment_date: appointmentDate,
+        appointment_time: appointmentTime,
+        reminder_type: reminderType
+      },
     });
   }
 
@@ -128,16 +184,21 @@ export class NotificationService {
   static async createTestResultNotification(
     userId: string,
     testName: string,
-    testId: string
+    testId: string,
+    isAbnormal: boolean = false
   ): Promise<void> {
     await this.createNotification({
       user_id: userId,
       title: 'Test Results Available',
-      message: `Your ${testName} results are now available for review`,
+      message: `Your ${testName} results are now available for review${isAbnormal ? '. Please review with your healthcare provider.' : '.'}`,
       notification_type: 'test_result',
-      priority: 'high',
+      priority: isAbnormal ? 'high' : 'normal',
       action_url: `/results`,
-      metadata: { test_id: testId },
+      metadata: { 
+        test_id: testId,
+        test_name: testName,
+        is_abnormal: isAbnormal
+      },
     });
   }
 
@@ -145,34 +206,109 @@ export class NotificationService {
   static async createMedicationReminder(
     userId: string,
     medicationName: string,
-    medicationId: string
+    medicationId: string,
+    dosage: string,
+    scheduledTime: string
   ): Promise<void> {
     await this.createNotification({
       user_id: userId,
       title: 'Medication Reminder',
-      message: `Time to take your ${medicationName}`,
+      message: `Time to take your ${medicationName} ${dosage}`,
       notification_type: 'medication',
       priority: 'normal',
       action_url: `/tracking`,
-      metadata: { medication_id: medicationId },
+      metadata: { 
+        medication_id: medicationId,
+        medication_name: medicationName,
+        dosage: dosage,
+        scheduled_time: scheduledTime
+      },
     });
   }
 
-  // Create message notification
-  static async createMessageNotification(
+  // Create system notification
+  static async createSystemNotification(
     userId: string,
-    senderName: string,
-    conversationId: string,
-    priority: 'normal' | 'high' | 'urgent' = 'normal'
+    title: string,
+    message: string,
+    priority: 'normal' | 'high' | 'urgent' = 'normal',
+    actionUrl?: string,
+    metadata?: any
   ): Promise<void> {
     await this.createNotification({
       user_id: userId,
-      title: 'New Message',
-      message: `You have a new message from ${senderName}`,
-      notification_type: 'message',
+      title,
+      message,
+      notification_type: 'system',
       priority,
-      action_url: `/messages`,
-      metadata: { conversation_id: conversationId },
+      action_url: actionUrl,
+      metadata: metadata || {},
     });
+  }
+
+  // Get action label for notification type
+  private static getActionLabel(notificationType: string): string {
+    switch (notificationType) {
+      case 'message': return 'Reply';
+      case 'appointment': return 'View';
+      case 'test_result': return 'Review';
+      case 'medication': return 'Mark Taken';
+      case 'system': return 'View';
+      default: return 'View';
+    }
+  }
+
+  // Trigger real-time notification (placeholder for WebSocket/SSE implementation)
+  private static triggerRealTimeNotification(userId: string, notification: Notification): void {
+    // In a real implementation, this would trigger a real-time notification
+    // via WebSocket, Server-Sent Events, or push notification service
+    console.log(`Real-time notification triggered for user ${userId}:`, notification);
+    
+    // Example: Browser notification API
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification(notification.title, {
+        body: notification.message,
+        icon: '/favicon.svg',
+        tag: notification.id,
+      });
+    }
+  }
+
+  // Request browser notification permission
+  static async requestNotificationPermission(): Promise<boolean> {
+    if (!('Notification' in window)) {
+      console.log('This browser does not support notifications');
+      return false;
+    }
+
+    if (Notification.permission === 'granted') {
+      return true;
+    }
+
+    if (Notification.permission !== 'denied') {
+      const permission = await Notification.requestPermission();
+      return permission === 'granted';
+    }
+
+    return false;
+  }
+
+  // Subscribe to real-time notifications
+  static subscribeToNotifications(userId: string, callback: (notification: Notification) => void) {
+    return supabase
+      .channel(`notifications:${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          callback(payload.new as Notification);
+        }
+      )
+      .subscribe();
   }
 }

@@ -16,9 +16,7 @@ import { Learn } from './pages/Learn';
 import { Community } from './pages/Community';
 import { Privacy } from './pages/Privacy';
 import { Help } from './pages/Help';
-
-// Placeholder components for other routes
-const Notifications = () => <div className="p-6"><h1 className="text-2xl font-bold">Notifications</h1><p className="text-gray-600 mt-2">Notification settings coming soon...</p></div>;
+import { Notifications } from './pages/Notifications';
 
 function App() {
   const authValue = useAuthProvider();

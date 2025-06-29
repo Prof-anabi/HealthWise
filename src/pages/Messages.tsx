@@ -18,6 +18,7 @@ import {
   User,
   Stethoscope,
   Heart,
+  UserCheck,
   Plus,
   Image,
   FileText,
@@ -30,175 +31,264 @@ import {
   Eye,
   Shield,
   Zap,
-  UserCheck,
   Activity,
+  Bell,
+  Circle,
+  Check,
+  CheckCheck,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Input } from '../components/ui/Input';
 import { useAuth } from '../hooks/useAuth';
-import { MessageService, type ConversationWithParticipants, type MessageWithSender } from '../services/messageService';
-import { subscribeToMessages } from '../lib/supabase';
+
+// Mock data for conversations and messages
+const mockConversations = [
+  {
+    id: '1',
+    participants: [
+      { id: '1', name: 'Dr. Sarah Johnson', role: 'doctor', avatar: '👩‍⚕️', specialty: 'Primary Care', isOnline: true },
+      { id: '2', name: 'John Patient', role: 'patient', avatar: '👨', isOnline: false }
+    ],
+    subject: 'Blood Pressure Medication Question',
+    lastMessage: {
+      id: '1',
+      content: 'Thank you for the clarification. I\'ll adjust my medication timing as suggested.',
+      senderId: '2',
+      timestamp: new Date(Date.now() - 30 * 60 * 1000), // 30 minutes ago
+      isRead: true,
+      priority: 'normal'
+    },
+    unreadCount: 0,
+    isStarred: false,
+    isArchived: false,
+    category: 'medical',
+    priority: 'normal',
+    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+  },
+  {
+    id: '2',
+    participants: [
+      { id: '3', name: 'Nurse Emily Rodriguez', role: 'nurse', avatar: '👩‍⚕️', specialty: 'Patient Care', isOnline: true },
+      { id: '2', name: 'John Patient', role: 'patient', avatar: '👨', isOnline: false }
+    ],
+    subject: 'Appointment Reminder & Pre-visit Instructions',
+    lastMessage: {
+      id: '2',
+      content: 'Please remember to bring your insurance card and arrive 15 minutes early for your appointment tomorrow.',
+      senderId: '3',
+      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
+      isRead: false,
+      priority: 'high'
+    },
+    unreadCount: 2,
+    isStarred: true,
+    isArchived: false,
+    category: 'appointment',
+    priority: 'high',
+    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
+  },
+  {
+    id: '3',
+    participants: [
+      { id: '4', name: 'Dr. Michael Chen', role: 'doctor', avatar: '👨‍⚕️', specialty: 'Cardiology', isOnline: false },
+      { id: '2', name: 'John Patient', role: 'patient', avatar: '👨', isOnline: false }
+    ],
+    subject: 'Test Results Discussion',
+    lastMessage: {
+      id: '3',
+      content: 'Your recent EKG results look good. Let\'s schedule a follow-up in 3 months.',
+      senderId: '4',
+      timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
+      isRead: true,
+      priority: 'normal'
+    },
+    unreadCount: 0,
+    isStarred: false,
+    isArchived: false,
+    category: 'results',
+    priority: 'normal',
+    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+  },
+];
+
+const mockMessages = {
+  '1': [
+    {
+      id: '1',
+      content: 'Hi Dr. Johnson, I have a question about my blood pressure medication. I\'ve been experiencing some dizziness in the mornings.',
+      senderId: '2',
+      senderName: 'John Patient',
+      senderRole: 'patient',
+      timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
+      isRead: true,
+      priority: 'normal',
+      attachments: [],
+      reactions: [],
+      isEdited: false,
+    },
+    {
+      id: '2',
+      content: 'Thank you for reaching out. Morning dizziness can be a side effect when starting blood pressure medication. How long have you been taking it, and what time do you usually take your dose?',
+      senderId: '1',
+      senderName: 'Dr. Sarah Johnson',
+      senderRole: 'doctor',
+      timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000),
+      isRead: true,
+      priority: 'normal',
+      attachments: [],
+      reactions: [],
+      isEdited: false,
+    },
+    {
+      id: '3',
+      content: 'I\'ve been taking it for about 2 weeks now. I usually take it right when I wake up, around 7 AM.',
+      senderId: '2',
+      senderName: 'John Patient',
+      senderRole: 'patient',
+      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
+      isRead: true,
+      priority: 'normal',
+      attachments: [],
+      reactions: [],
+      isEdited: false,
+    },
+    {
+      id: '4',
+      content: 'That timing might be contributing to the dizziness. Try taking it with breakfast instead of on an empty stomach, and make sure to stand up slowly in the mornings. If the dizziness persists after a few days, let me know.',
+      senderId: '1',
+      senderName: 'Dr. Sarah Johnson',
+      senderRole: 'doctor',
+      timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000),
+      isRead: true,
+      priority: 'normal',
+      attachments: [],
+      reactions: [],
+      isEdited: false,
+    },
+    {
+      id: '5',
+      content: 'Thank you for the clarification. I\'ll adjust my medication timing as suggested.',
+      senderId: '2',
+      senderName: 'John Patient',
+      senderRole: 'patient',
+      timestamp: new Date(Date.now() - 30 * 60 * 1000),
+      isRead: true,
+      priority: 'normal',
+      attachments: [],
+      reactions: [],
+      isEdited: false,
+    },
+  ],
+  '2': [
+    {
+      id: '6',
+      content: 'Hi John! This is a reminder about your appointment tomorrow at 10:00 AM with Dr. Johnson.',
+      senderId: '3',
+      senderName: 'Nurse Emily Rodriguez',
+      senderRole: 'nurse',
+      timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
+      isRead: true,
+      priority: 'high',
+      attachments: [],
+      reactions: [],
+      isEdited: false,
+    },
+    {
+      id: '7',
+      content: 'Please remember to bring your insurance card and arrive 15 minutes early for your appointment tomorrow.',
+      senderId: '3',
+      senderName: 'Nurse Emily Rodriguez',
+      senderRole: 'nurse',
+      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
+      isRead: false,
+      priority: 'high',
+      attachments: [
+        { id: '1', name: 'Pre-visit-checklist.pdf', type: 'pdf', size: '245 KB' }
+      ],
+      reactions: [],
+      isEdited: false,
+    },
+  ],
+};
+
+const mockNotifications = [
+  {
+    id: '1',
+    type: 'message',
+    title: 'New message from Dr. Sarah Johnson',
+    message: 'That timing might be contributing to the dizziness...',
+    timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000),
+    isRead: false,
+    priority: 'normal',
+    actionUrl: '/messages?conversation=1',
+    metadata: { conversationId: '1', senderId: '1' }
+  },
+  {
+    id: '2',
+    type: 'appointment',
+    title: 'Appointment reminder',
+    message: 'You have an appointment with Dr. Johnson tomorrow at 10:00 AM',
+    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
+    isRead: false,
+    priority: 'high',
+    actionUrl: '/appointments',
+    metadata: { appointmentId: '123' }
+  },
+  {
+    id: '3',
+    type: 'test_result',
+    title: 'Test results available',
+    message: 'Your blood work results are now available for review',
+    timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+    isRead: true,
+    priority: 'normal',
+    actionUrl: '/test-results',
+    metadata: { testId: '456' }
+  },
+];
 
 const messageCategories = [
-  { id: 'all', label: 'All Messages', icon: MessageSquare },
-  { id: 'urgent', label: 'Urgent', icon: AlertCircle },
-  { id: 'follow-up', label: 'Follow-up', icon: Clock },
-  { id: 'results', label: 'Results', icon: FileText },
-  { id: 'clinical', label: 'Clinical', icon: Stethoscope },
-  { id: 'starred', label: 'Starred', icon: Star },
-  { id: 'archived', label: 'Archived', icon: Archive },
+  { id: 'all', label: 'All Messages', icon: MessageSquare, count: 3 },
+  { id: 'unread', label: 'Unread', icon: Circle, count: 2 },
+  { id: 'starred', label: 'Starred', icon: Star, count: 1 },
+  { id: 'medical', label: 'Medical', icon: Stethoscope, count: 1 },
+  { id: 'appointment', label: 'Appointments', icon: Clock, count: 1 },
+  { id: 'results', label: 'Results', icon: FileText, count: 1 },
+  { id: 'archived', label: 'Archived', icon: Archive, count: 0 },
 ];
 
 export const Messages: React.FC = () => {
   const { user } = useAuth();
-  const [conversations, setConversations] = React.useState<ConversationWithParticipants[]>([]);
-  const [messages, setMessages] = React.useState<MessageWithSender[]>([]);
-  const [selectedConversation, setSelectedConversation] = React.useState<string | null>(null);
+  const [selectedConversation, setSelectedConversation] = React.useState<string | null>('1');
   const [selectedCategory, setSelectedCategory] = React.useState('all');
   const [searchTerm, setSearchTerm] = React.useState('');
   const [newMessage, setNewMessage] = React.useState('');
   const [showNewMessageModal, setShowNewMessageModal] = React.useState(false);
+  const [showNotifications, setShowNotifications] = React.useState(false);
   const [showAttachmentMenu, setShowAttachmentMenu] = React.useState(false);
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [healthcareProviders, setHealthcareProviders] = React.useState<any[]>([]);
+  const [messagePriority, setMessagePriority] = React.useState<'normal' | 'high' | 'urgent'>('normal');
 
-  // Load conversations on mount
-  React.useEffect(() => {
-    if (user) {
-      loadConversations();
-      loadHealthcareProviders();
-    }
-  }, [user]);
-
-  // Load messages when conversation is selected
-  React.useEffect(() => {
-    if (selectedConversation) {
-      loadMessages(selectedConversation);
-      
-      // Subscribe to real-time messages
-      const subscription = subscribeToMessages(selectedConversation, (payload) => {
-        if (payload.eventType === 'INSERT') {
-          loadMessages(selectedConversation);
-        }
-      });
-
-      return () => {
-        subscription.unsubscribe();
-      };
-    }
-  }, [selectedConversation]);
-
-  const loadConversations = async () => {
-    if (!user) return;
-    
-    try {
-      setIsLoading(true);
-      const data = await MessageService.getConversations(user.id);
-      setConversations(data);
-      
-      // Auto-select first conversation if none selected
-      if (!selectedConversation && data.length > 0) {
-        setSelectedConversation(data[0].id);
-      }
-    } catch (error) {
-      console.error('Error loading conversations:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loadMessages = async (conversationId: string) => {
-    try {
-      const data = await MessageService.getMessages(conversationId);
-      setMessages(data);
-      
-      // Mark conversation as read
-      if (user) {
-        await MessageService.markAsRead(conversationId, user.id);
-      }
-    } catch (error) {
-      console.error('Error loading messages:', error);
-    }
-  };
-
-  const loadHealthcareProviders = async () => {
-    if (!user) return;
-    
-    try {
-      const providers = await MessageService.getHealthcareProviders(user.role);
-      setHealthcareProviders(providers);
-    } catch (error) {
-      console.error('Error loading healthcare providers:', error);
-    }
-  };
-
-  const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedConversation || !user) return;
-
-    try {
-      await MessageService.sendMessage(
-        selectedConversation,
-        user.id,
-        newMessage.trim()
-      );
-      
-      setNewMessage('');
-      // Messages will be reloaded via real-time subscription
-    } catch (error) {
-      console.error('Error sending message:', error);
-    }
-  };
-
-  const handleCreateConversation = async (
-    subject: string,
-    recipientId: string,
-    initialMessage: string,
-    priority: 'normal' | 'high' | 'urgent' = 'normal'
-  ) => {
-    if (!user) return;
-
-    try {
-      const conversationId = await MessageService.createConversation(
-        subject,
-        [user.id, recipientId],
-        'general'
-      );
-
-      if (conversationId) {
-        await MessageService.sendMessage(
-          conversationId,
-          user.id,
-          initialMessage,
-          priority
-        );
-        
-        setSelectedConversation(conversationId);
-        await loadConversations();
-      }
-    } catch (error) {
-      console.error('Error creating conversation:', error);
-    }
-  };
-
-  const filteredConversations = conversations.filter(conversation => {
+  const filteredConversations = mockConversations.filter(conversation => {
     const matchesSearch = conversation.participants.some(p => 
-      `${p.first_name} ${p.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
+      p.name.toLowerCase().includes(searchTerm.toLowerCase())
     ) || conversation.subject.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesCategory = selectedCategory === 'all' || 
-      (selectedCategory === 'urgent' && conversation.last_message?.priority === 'high') ||
-      (selectedCategory === 'starred' && conversation.is_starred) ||
-      (selectedCategory === 'archived' && conversation.is_archived) ||
+      (selectedCategory === 'unread' && conversation.unreadCount > 0) ||
+      (selectedCategory === 'starred' && conversation.isStarred) ||
+      (selectedCategory === 'archived' && conversation.isArchived) ||
       conversation.category === selectedCategory;
     
-    return matchesSearch && matchesCategory;
+    return matchesSearch && matchesCategory && !conversation.isArchived;
   });
 
   const selectedConversationData = selectedConversation 
-    ? conversations.find(c => c.id === selectedConversation)
+    ? mockConversations.find(c => c.id === selectedConversation)
     : null;
+
+  const currentMessages = selectedConversation ? mockMessages[selectedConversation] || [] : [];
 
   const getParticipantIcon = (role: string) => {
     switch (role) {
@@ -211,22 +301,45 @@ export const Messages: React.FC = () => {
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'high': return 'danger';
+      case 'high': return 'warning';
       case 'urgent': return 'danger';
-      case 'medium': return 'warning';
       default: return 'default';
     }
   };
 
-  const formatMessageTime = (timestamp: string) => {
-    const date = new Date(timestamp);
-    if (isToday(date)) {
-      return format(date, 'HH:mm');
-    } else if (isYesterday(date)) {
+  const formatMessageTime = (timestamp: Date) => {
+    if (isToday(timestamp)) {
+      return format(timestamp, 'HH:mm');
+    } else if (isYesterday(timestamp)) {
       return 'Yesterday';
     } else {
-      return format(date, 'MMM d');
+      return format(timestamp, 'MMM d');
     }
+  };
+
+  const handleSendMessage = () => {
+    if (!newMessage.trim() || !selectedConversation) return;
+
+    // In a real app, this would send the message to the backend
+    console.log('Sending message:', {
+      conversationId: selectedConversation,
+      content: newMessage,
+      priority: messagePriority,
+      senderId: user?.id,
+    });
+
+    // Create notification for recipient
+    const conversation = mockConversations.find(c => c.id === selectedConversation);
+    if (conversation) {
+      const recipient = conversation.participants.find(p => p.id !== user?.id);
+      if (recipient) {
+        // Trigger notification
+        console.log('Creating notification for:', recipient.name);
+      }
+    }
+
+    setNewMessage('');
+    setMessagePriority('normal');
   };
 
   const NewMessageModal = () => {
@@ -237,16 +350,18 @@ export const Messages: React.FC = () => {
       priority: 'normal' as 'normal' | 'high' | 'urgent',
     });
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const availableContacts = [
+      { id: '1', name: 'Dr. Sarah Johnson', role: 'doctor', specialty: 'Primary Care' },
+      { id: '3', name: 'Nurse Emily Rodriguez', role: 'nurse', specialty: 'Patient Care' },
+      { id: '4', name: 'Dr. Michael Chen', role: 'doctor', specialty: 'Cardiology' },
+    ];
+
+    const handleSubmit = (e: React.FormEvent) => {
       e.preventDefault();
       
       if (formData.recipient && formData.subject && formData.message) {
-        await handleCreateConversation(
-          formData.subject,
-          formData.recipient,
-          formData.message,
-          formData.priority
-        );
+        // In a real app, this would create a new conversation
+        console.log('Creating new conversation:', formData);
         setShowNewMessageModal(false);
         setFormData({ recipient: '', subject: '', message: '', priority: 'normal' });
       }
@@ -254,7 +369,7 @@ export const Messages: React.FC = () => {
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-xl max-w-md w-full">
+        <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
           <div className="p-6 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <h3 className="text-xl font-bold text-gray-900">New Message</h3>
@@ -279,9 +394,9 @@ export const Messages: React.FC = () => {
                 required
               >
                 <option value="">Select recipient...</option>
-                {healthcareProviders.map((provider) => (
-                  <option key={provider.id} value={provider.id}>
-                    {provider.first_name} {provider.last_name} ({provider.role})
+                {availableContacts.map((contact) => (
+                  <option key={contact.id} value={contact.id}>
+                    {contact.name} ({contact.role} - {contact.specialty})
                   </option>
                 ))}
               </select>
@@ -317,7 +432,7 @@ export const Messages: React.FC = () => {
               <textarea
                 value={formData.message}
                 onChange={(e) => setFormData(prev => ({ ...prev, message: e.target.value }))}
-                rows={4}
+                rows={6}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 placeholder="Type your message..."
                 required
@@ -339,16 +454,51 @@ export const Messages: React.FC = () => {
     );
   };
 
-  if (isLoading) {
-    return (
-      <div className="h-[calc(100vh-8rem)] flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading messages...</p>
+  const NotificationPanel = () => (
+    <div className="absolute right-0 top-12 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+      <div className="p-4 border-b border-gray-200">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-gray-900">Notifications</h3>
+          <Button variant="ghost" size="sm">
+            Mark all read
+          </Button>
         </div>
       </div>
-    );
-  }
+      
+      <div className="divide-y divide-gray-200">
+        {mockNotifications.map((notification) => (
+          <div
+            key={notification.id}
+            className={`p-4 hover:bg-gray-50 cursor-pointer ${
+              !notification.isRead ? 'bg-blue-50' : ''
+            }`}
+          >
+            <div className="flex items-start space-x-3">
+              <div className={`w-2 h-2 rounded-full mt-2 ${
+                notification.isRead ? 'bg-gray-300' : 'bg-blue-500'
+              }`}></div>
+              <div className="flex-1">
+                <div className="flex items-center space-x-2 mb-1">
+                  <h4 className="text-sm font-medium text-gray-900">{notification.title}</h4>
+                  {notification.priority === 'high' && (
+                    <Badge variant="warning" size="sm">High</Badge>
+                  )}
+                </div>
+                <p className="text-sm text-gray-600 mb-1">{notification.message}</p>
+                <p className="text-xs text-gray-500">{formatMessageTime(notification.timestamp)}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      
+      <div className="p-4 border-t border-gray-200">
+        <Button variant="outline" size="sm" className="w-full">
+          View All Notifications
+        </Button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="h-[calc(100vh-8rem)] flex bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -358,10 +508,27 @@ export const Messages: React.FC = () => {
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900">Messages</h2>
-            <Button size="sm" onClick={() => setShowNewMessageModal(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              New
-            </Button>
+            <div className="flex items-center space-x-2">
+              <div className="relative">
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => setShowNotifications(!showNotifications)}
+                >
+                  <Bell className="w-4 h-4" />
+                  {mockNotifications.filter(n => !n.isRead).length > 0 && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                      {mockNotifications.filter(n => !n.isRead).length}
+                    </span>
+                  )}
+                </Button>
+                {showNotifications && <NotificationPanel />}
+              </div>
+              <Button size="sm" onClick={() => setShowNewMessageModal(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                New
+              </Button>
+            </div>
           </div>
           
           {/* Search */}
@@ -379,17 +546,19 @@ export const Messages: React.FC = () => {
               <button
                 key={category.id}
                 onClick={() => setSelectedCategory(category.id)}
-                className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                className={`w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                   selectedCategory === category.id
                     ? 'bg-primary-50 text-primary-700'
                     : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                <category.icon className="w-4 h-4 mr-3" />
-                {category.label}
-                {category.id === 'urgent' && (
-                  <Badge variant="danger" size="sm" className="ml-auto">
-                    {conversations.filter(c => c.last_message?.priority === 'high').length}
+                <div className="flex items-center">
+                  <category.icon className="w-4 h-4 mr-3" />
+                  {category.label}
+                </div>
+                {category.count > 0 && (
+                  <Badge variant="default" size="sm">
+                    {category.count}
                   </Badge>
                 )}
               </button>
@@ -415,9 +584,12 @@ export const Messages: React.FC = () => {
                     <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
                       {getParticipantIcon(otherParticipant?.role || 'patient')}
                     </div>
-                    {conversation.unread_count > 0 && (
+                    {otherParticipant?.isOnline && (
+                      <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+                    )}
+                    {conversation.unreadCount > 0 && (
                       <div className="absolute -top-1 -right-1 w-5 h-5 bg-primary-600 text-white text-xs rounded-full flex items-center justify-center">
-                        {conversation.unread_count}
+                        {conversation.unreadCount}
                       </div>
                     )}
                   </div>
@@ -426,21 +598,24 @@ export const Messages: React.FC = () => {
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center space-x-2">
                         <h4 className="font-medium text-gray-900 truncate">
-                          {otherParticipant?.first_name} {otherParticipant?.last_name}
+                          {otherParticipant?.name}
                         </h4>
                         <span className="text-xs text-gray-500 capitalize">
                           {otherParticipant?.role}
                         </span>
                       </div>
                       <div className="flex items-center space-x-1">
-                        {conversation.is_starred && (
+                        {conversation.isStarred && (
                           <Star className="w-3 h-3 text-yellow-500 fill-current" />
                         )}
-                        {conversation.last_message?.priority === 'high' && (
+                        {conversation.lastMessage?.priority === 'high' && (
+                          <AlertCircle className="w-3 h-3 text-orange-500" />
+                        )}
+                        {conversation.lastMessage?.priority === 'urgent' && (
                           <AlertCircle className="w-3 h-3 text-red-500" />
                         )}
                         <span className="text-xs text-gray-500">
-                          {conversation.last_message && formatMessageTime(conversation.last_message.created_at)}
+                          {conversation.lastMessage && formatMessageTime(conversation.lastMessage.timestamp)}
                         </span>
                       </div>
                     </div>
@@ -450,7 +625,7 @@ export const Messages: React.FC = () => {
                     </p>
                     
                     <p className="text-sm text-gray-600 truncate">
-                      {conversation.last_message?.content}
+                      {conversation.lastMessage?.content}
                     </p>
                   </div>
                 </div>
@@ -468,20 +643,35 @@ export const Messages: React.FC = () => {
             <div className="p-4 border-b border-gray-200 bg-white">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                    {getParticipantIcon(selectedConversationData.participants.find(p => p.id !== user?.id)?.role || 'patient')}
+                  <div className="relative">
+                    <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+                      {getParticipantIcon(selectedConversationData.participants.find(p => p.id !== user?.id)?.role || 'patient')}
+                    </div>
+                    {selectedConversationData.participants.find(p => p.id !== user?.id)?.isOnline && (
+                      <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+                    )}
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900">
-                      {selectedConversationData.participants.find(p => p.id !== user?.id)?.first_name} {selectedConversationData.participants.find(p => p.id !== user?.id)?.last_name}
+                      {selectedConversationData.participants.find(p => p.id !== user?.id)?.name}
                     </h3>
                     <div className="flex items-center space-x-2">
                       <span className="text-sm text-gray-600 capitalize">
                         {selectedConversationData.participants.find(p => p.id !== user?.id)?.role}
                       </span>
+                      <span className="text-sm text-gray-500">•</span>
+                      <span className="text-sm text-gray-500">
+                        {selectedConversationData.participants.find(p => p.id !== user?.id)?.specialty}
+                      </span>
                       <div className="flex items-center space-x-1">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span className="text-xs text-gray-500">Online</span>
+                        <div className={`w-2 h-2 rounded-full ${
+                          selectedConversationData.participants.find(p => p.id !== user?.id)?.isOnline 
+                            ? 'bg-green-500' 
+                            : 'bg-gray-400'
+                        }`}></div>
+                        <span className="text-xs text-gray-500">
+                          {selectedConversationData.participants.find(p => p.id !== user?.id)?.isOnline ? 'Online' : 'Offline'}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -494,12 +684,8 @@ export const Messages: React.FC = () => {
                   <Button variant="outline" size="sm">
                     <Video className="w-4 h-4" />
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => MessageService.toggleStar(selectedConversationData.id, !selectedConversationData.is_starred)}
-                  >
-                    <Star className={`w-4 h-4 ${selectedConversationData.is_starred ? 'fill-current text-yellow-500' : ''}`} />
+                  <Button variant="outline" size="sm">
+                    <Star className={`w-4 h-4 ${selectedConversationData.isStarred ? 'fill-current text-yellow-500' : ''}`} />
                   </Button>
                   <Button variant="outline" size="sm">
                     <MoreHorizontal className="w-4 h-4" />
@@ -517,8 +703,8 @@ export const Messages: React.FC = () => {
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {messages.map((message) => {
-                const isOwnMessage = message.sender_id === user?.id;
+              {currentMessages.map((message) => {
+                const isOwnMessage = message.senderId === user?.id;
                 
                 return (
                   <div
@@ -529,11 +715,16 @@ export const Messages: React.FC = () => {
                       {!isOwnMessage && (
                         <div className="flex items-center space-x-2 mb-1">
                           <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center">
-                            {getParticipantIcon(message.sender.role)}
+                            {getParticipantIcon(message.senderRole)}
                           </div>
                           <span className="text-xs font-medium text-gray-700">
-                            {message.sender.first_name} {message.sender.last_name}
+                            {message.senderName}
                           </span>
+                          {message.priority !== 'normal' && (
+                            <Badge variant={getPriorityColor(message.priority) as any} size="sm">
+                              {message.priority}
+                            </Badge>
+                          )}
                         </div>
                       )}
                       
@@ -545,17 +736,43 @@ export const Messages: React.FC = () => {
                         }`}
                       >
                         <p className="text-sm">{message.content}</p>
+                        
+                        {message.attachments && message.attachments.length > 0 && (
+                          <div className="mt-2 space-y-1">
+                            {message.attachments.map((attachment) => (
+                              <div
+                                key={attachment.id}
+                                className={`flex items-center space-x-2 p-2 rounded ${
+                                  isOwnMessage ? 'bg-primary-700' : 'bg-gray-200'
+                                }`}
+                              >
+                                <FileText className="w-4 h-4" />
+                                <span className="text-xs">{attachment.name}</span>
+                                <span className="text-xs opacity-75">({attachment.size})</span>
+                                <Button variant="ghost" size="sm">
+                                  <Download className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       
                       <div className={`flex items-center space-x-2 mt-1 ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
                         <span className="text-xs text-gray-500">
-                          {format(new Date(message.created_at), 'HH:mm')}
+                          {format(message.timestamp, 'HH:mm')}
                         </span>
                         {isOwnMessage && (
-                          <CheckCircle className="w-3 h-3 text-green-500" />
+                          <div className="flex items-center">
+                            {message.isRead ? (
+                              <CheckCheck className="w-3 h-3 text-green-500" />
+                            ) : (
+                              <Check className="w-3 h-3 text-gray-400" />
+                            )}
+                          </div>
                         )}
-                        {message.priority === 'high' && (
-                          <AlertCircle className="w-3 h-3 text-red-500" />
+                        {message.isEdited && (
+                          <span className="text-xs text-gray-400">edited</span>
                         )}
                       </div>
                     </div>
@@ -614,13 +831,24 @@ export const Messages: React.FC = () => {
                   )}
                 </div>
                 
-                <Button
-                  onClick={handleSendMessage}
-                  disabled={!newMessage.trim()}
-                  className="px-4 py-3"
-                >
-                  <Send className="w-4 h-4" />
-                </Button>
+                <div className="flex items-center space-x-2">
+                  <select
+                    value={messagePriority}
+                    onChange={(e) => setMessagePriority(e.target.value as any)}
+                    className="border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  >
+                    <option value="normal">Normal</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                  <Button
+                    onClick={handleSendMessage}
+                    disabled={!newMessage.trim()}
+                    className="px-4 py-3"
+                  >
+                    <Send className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
               
               {/* Quick Actions */}

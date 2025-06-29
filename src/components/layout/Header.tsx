@@ -1,6 +1,7 @@
 import React from 'react';
 import { Menu, Bell, User, LogOut, Settings } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { useNotifications } from '../../hooks/useNotifications';
 import { Button } from '../ui/Button';
 
 interface HeaderProps {
@@ -9,6 +10,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const { user, logout } = useAuth();
+  const { unreadCount } = useNotifications();
   const [showUserMenu, setShowUserMenu] = React.useState(false);
 
   return (
@@ -25,7 +27,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           </button>
           <div className="ml-4 lg:ml-0">
             <h2 className="text-lg font-semibold text-gray-900">
-              Welcome back, {user?.firstName}!
+              Welcome back, {user?.first_name}!
             </h2>
             <p className="text-sm text-gray-500">
               Stay on top of your health journey
@@ -38,7 +40,11 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           {/* Notifications */}
           <button className="relative p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded-md">
             <Bell className="h-6 w-6" />
-            <span className="absolute top-1 right-1 h-2 w-2 bg-danger-500 rounded-full"></span>
+            {unreadCount > 0 && (
+              <span className="absolute top-1 right-1 h-5 w-5 bg-danger-500 text-white text-xs rounded-full flex items-center justify-center">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
           </button>
 
           {/* User menu */}
@@ -53,9 +59,9 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
               </div>
               <div className="hidden md:block text-left">
                 <p className="text-sm font-medium text-gray-900">
-                  {user?.firstName} {user?.lastName}
+                  {user?.first_name} {user?.last_name}
                 </p>
-                <p className="text-xs text-gray-500">{user?.role}</p>
+                <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
               </div>
             </button>
 
