@@ -12,13 +12,13 @@ import { Doctors } from './pages/Doctors';
 import { Tracking } from './pages/Tracking';
 import { Settings } from './pages/Settings';
 import { Messages } from './pages/Messages';
+import { Learn } from './pages/Learn';
+import { Community } from './pages/Community';
+import { Privacy } from './pages/Privacy';
+import { Help } from './pages/Help';
 
 // Placeholder components for other routes
-const Learn = () => <div className="p-6"><h1 className="text-2xl font-bold">Learn</h1><p className="text-gray-600 mt-2">Educational resources coming soon...</p></div>;
-const Community = () => <div className="p-6"><h1 className="text-2xl font-bold">Community</h1><p className="text-gray-600 mt-2">Support groups and forums coming soon...</p></div>;
 const Notifications = () => <div className="p-6"><h1 className="text-2xl font-bold">Notifications</h1><p className="text-gray-600 mt-2">Notification settings coming soon...</p></div>;
-const Privacy = () => <div className="p-6"><h1 className="text-2xl font-bold">Privacy & Consent</h1><p className="text-gray-600 mt-2">Privacy management coming soon...</p></div>;
-const Help = () => <div className="p-6"><h1 className="text-2xl font-bold">Help & Support</h1><p className="text-gray-600 mt-2">Help center coming soon...</p></div>;
 
 function App() {
   const authValue = useAuthProvider();
