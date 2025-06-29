@@ -113,7 +113,7 @@ const mockConversations = [
   },
 ];
 
-const mockMessages = {
+const initialMessages = {
   '1': [
     {
       id: '1',
@@ -284,7 +284,7 @@ export const Messages: React.FC = () => {
   const [showNotifications, setShowNotifications] = React.useState(false);
   const [showAttachmentMenu, setShowAttachmentMenu] = React.useState(false);
   const [messagePriority, setMessagePriority] = React.useState<'normal' | 'high' | 'urgent'>('normal');
-  const [messages, setMessages] = React.useState(mockMessages);
+  const [messages, setMessages] = React.useState(initialMessages);
 
   const filteredConversations = mockConversations.filter(conversation => {
     const matchesSearch = conversation.participants.some(p => 
