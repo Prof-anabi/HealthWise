@@ -31,10 +31,16 @@ import {
   Fingerprint,
   Zap,
   Target,
+  Plus,
+  X,
+  Save,
+  RefreshCw,
+  UserX,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
+import { Input } from '../components/ui/Input';
 import { useAuth } from '../hooks/useAuth';
 
 // Mock data for privacy settings
@@ -125,7 +131,7 @@ const dataCategories = [
   },
 ];
 
-const privacySettings = [
+const initialPrivacySettings = [
   {
     id: 'profile_visibility',
     name: 'Profile Visibility',
@@ -192,10 +198,268 @@ const consentHistory = [
 ];
 
 export const Privacy: React.FC = () => {
-  const { user } = useAuth();
+  const { user, updateUser, logout } = useAuth();
   const [activeTab, setActiveTab] = React.useState<'overview' | 'data' | 'sharing' | 'consent' | 'security'>('overview');
   const [showDataExportModal, setShowDataExportModal] = React.useState(false);
   const [showDeleteModal, setShowDeleteModal] = React.useState(false);
+  const [showViewDataModal, setShowViewDataModal] = React.useState(false);
+  const [showPrivacySettingsModal, setShowPrivacySettingsModal] = React.useState(false);
+  const [showConsentModal, setShowConsentModal] = React.useState(false);
+  const [showSecurityModal, setShowSecurityModal] = React.useState(false);
+  const [selectedDataCategory, setSelectedDataCategory] = React.useState<string | null>(null);
+  const [privacySettings, setPrivacySettings] = React.useState(initialPrivacySettings);
+  const [dataSharingSettings, setDataSharingSettings] = React.useState(dataCategories);
+  const [exportProgress, setExportProgress] = React.useState(0);
+  const [isExporting, setIsExporting] = React.useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = React.useState('');
+  const [selectedConsent, setSelectedConsent] = React.useState<string | null>(null);
+  const [privacyScore, setPrivacyScore] = React.useState(85);
+
+  // Calculate privacy score based on settings
+  const calculatePrivacyScore = React.useCallback(() => {
+    let score = 0;
+    
+    // Base score for having privacy settings configured
+    score += 20;
+    
+    // Score for restrictive profile visibility
+    const profileSetting = privacySettings.find(s => s.id === 'profile_visibility');
+    if (profileSetting?.current === 'Private') score += 20;
+    else if (profileSetting?.current === 'Healthcare Providers Only') score += 15;
+    else score += 5;
+    
+    // Score for disabled search visibility
+    const searchSetting = privacySettings.find(s => s.id === 'search_visibility');
+    if (searchSetting?.current === 'Disabled') score += 15;
+    else score += 5;
+    
+    // Score for two-factor authentication
+    if (user?.two_factor_enabled) score += 20;
+    else score += 0;
+    
+    // Score for biometric authentication
+    if (user?.biometric_enabled) score += 10;
+    else score += 0;
+    
+    // Score for limited data sharing
+    const totalSharing = dataSharingSettings.reduce((acc, category) => {
+      return acc + Object.values(category.sharing).filter(Boolean).length;
+    }, 0);
+    const maxSharing = dataSharingSettings.length * 4;
+    score += Math.max(0, 20 - (totalSharing / maxSharing) * 20);
+    
+    return Math.min(100, Math.max(0, score));
+  }, [privacySettings, dataSharingSettings, user]);
+
+  React.useEffect(() => {
+    setPrivacyScore(calculatePrivacyScore());
+  }, [calculatePrivacyScore]);
+
+  const handleViewMyData = () => {
+    setShowViewDataModal(true);
+  };
+
+  const handleExportData = async () => {
+    setIsExporting(true);
+    setExportProgress(0);
+    
+    // Simulate export progress
+    const interval = setInterval(() => {
+      setExportProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          setIsExporting(false);
+          // Simulate download
+          const blob = new Blob([JSON.stringify({
+            user: user,
+            exportDate: new Date().toISOString(),
+            dataCategories: dataSharingSettings.map(cat => ({
+              name: cat.name,
+              dataPoints: cat.dataPoints,
+              lastUpdated: cat.lastUpdated
+            }))
+          }, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `healthwise-data-export-${new Date().toISOString().split('T')[0]}.json`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          setShowDataExportModal(false);
+          return 100;
+        }
+        return prev + 10;
+      });
+    }, 200);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== 'DELETE') {
+      alert('Please type "DELETE" to confirm account deletion');
+      return;
+    }
+    
+    // In a real app, this would call an API to delete the account
+    alert('Account deletion initiated. You will receive a confirmation email within 24 hours.');
+    setShowDeleteModal(false);
+    setDeleteConfirmText('');
+    
+    // For demo purposes, just logout
+    await logout();
+  };
+
+  const handlePrivacySettingChange = (settingId: string, newValue: string) => {
+    setPrivacySettings(prev => 
+      prev.map(setting => 
+        setting.id === settingId 
+          ? { ...setting, current: newValue }
+          : setting
+      )
+    );
+  };
+
+  const handleDataSharingChange = (categoryId: string, shareType: string, enabled: boolean) => {
+    setDataSharingSettings(prev =>
+      prev.map(category =>
+        category.id === categoryId
+          ? {
+              ...category,
+              sharing: {
+                ...category.sharing,
+                [shareType]: enabled
+              }
+            }
+          : category
+      )
+    );
+  };
+
+  const handleEnableTwoFactor = async () => {
+    try {
+      // In a real app, this would generate a QR code and setup 2FA
+      const qrCode = await user?.enableTwoFactor?.();
+      if (qrCode) {
+        alert('Two-factor authentication has been enabled. Please save your backup codes.');
+        await updateUser({ two_factor_enabled: true });
+      }
+    } catch (error) {
+      console.error('Error enabling 2FA:', error);
+      alert('Failed to enable two-factor authentication. Please try again.');
+    }
+  };
+
+  const handleDisableTwoFactor = async () => {
+    try {
+      await user?.disableTwoFactor?.();
+      await updateUser({ two_factor_enabled: false });
+      alert('Two-factor authentication has been disabled.');
+    } catch (error) {
+      console.error('Error disabling 2FA:', error);
+      alert('Failed to disable two-factor authentication. Please try again.');
+    }
+  };
+
+  const handleEnableBiometric = async () => {
+    try {
+      // Check if biometric authentication is available
+      if ('credentials' in navigator) {
+        await updateUser({ biometric_enabled: true });
+        alert('Biometric authentication has been enabled.');
+      } else {
+        alert('Biometric authentication is not supported on this device.');
+      }
+    } catch (error) {
+      console.error('Error enabling biometric auth:', error);
+      alert('Failed to enable biometric authentication. Please try again.');
+    }
+  };
+
+  const handleDisableBiometric = async () => {
+    try {
+      await updateUser({ biometric_enabled: false });
+      alert('Biometric authentication has been disabled.');
+    } catch (error) {
+      console.error('Error disabling biometric auth:', error);
+      alert('Failed to disable biometric authentication. Please try again.');
+    }
+  };
+
+  const handleConsentUpdate = (consentId: string, newStatus: 'Active' | 'Declined') => {
+    // In a real app, this would update the consent in the database
+    alert(`Consent ${newStatus.toLowerCase()} successfully updated.`);
+  };
+
+  const handleImproveScore = () => {
+    setShowPrivacySettingsModal(true);
+  };
+
+  const ViewDataModal = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-bold text-gray-900">My Health Data</h3>
+            <button
+              onClick={() => setShowViewDataModal(false)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+        
+        <div className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {dataSharingSettings.map((category) => (
+              <Card 
+                key={category.id} 
+                className={`cursor-pointer transition-all ${
+                  selectedDataCategory === category.id ? 'ring-2 ring-primary-500' : ''
+                }`}
+                onClick={() => setSelectedDataCategory(
+                  selectedDataCategory === category.id ? null : category.id
+                )}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                      <category.icon className="w-5 h-5 text-gray-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900">{category.name}</h4>
+                      <p className="text-sm text-gray-600">{category.dataPoints} records</p>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-3">{category.description}</p>
+                  <div className="text-xs text-gray-500">
+                    Last updated: {new Date(category.lastUpdated).toLocaleDateString()}
+                  </div>
+                  
+                  {selectedDataCategory === category.id && (
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <h5 className="font-medium text-gray-900 mb-2">Sample Data Preview</h5>
+                      <div className="bg-gray-50 p-3 rounded text-sm">
+                        <p className="text-gray-700">
+                          {category.name === 'Health Records' && 'Medical history, diagnoses, treatment plans...'}
+                          {category.name === 'Test Results' && 'Blood work, imaging studies, lab reports...'}
+                          {category.name === 'Medications' && 'Current prescriptions, dosages, schedules...'}
+                          {category.name === 'Vital Signs' && 'Blood pressure, heart rate, temperature readings...'}
+                          {category.name === 'Appointments' && 'Scheduled visits, appointment history...'}
+                          {category.name === 'Communications' && 'Messages with healthcare providers...'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   const DataExportModal = () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -205,52 +469,59 @@ export const Privacy: React.FC = () => {
         </div>
         
         <div className="p-6 space-y-4">
-          <p className="text-gray-600">
-            We'll prepare a comprehensive export of all your health data. This may take a few minutes.
-          </p>
-          
-          <div className="space-y-3">
-            <label className="flex items-center">
-              <input type="checkbox" defaultChecked className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
-              <span className="ml-2 text-sm">Health Records</span>
-            </label>
-            <label className="flex items-center">
-              <input type="checkbox" defaultChecked className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
-              <span className="ml-2 text-sm">Test Results</span>
-            </label>
-            <label className="flex items-center">
-              <input type="checkbox" defaultChecked className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
-              <span className="ml-2 text-sm">Medications</span>
-            </label>
-            <label className="flex items-center">
-              <input type="checkbox" defaultChecked className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
-              <span className="ml-2 text-sm">Vital Signs</span>
-            </label>
-            <label className="flex items-center">
-              <input type="checkbox" className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
-              <span className="ml-2 text-sm">Communications</span>
-            </label>
-          </div>
-          
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <div className="flex items-start">
-              <Info className="w-5 h-5 text-blue-600 mr-2 mt-0.5" />
-              <div>
-                <p className="text-sm text-blue-900 font-medium">Export Format</p>
-                <p className="text-sm text-blue-800">Data will be exported in JSON format with a summary PDF report.</p>
+          {!isExporting ? (
+            <>
+              <p className="text-gray-600">
+                We'll prepare a comprehensive export of all your health data. This may take a few minutes.
+              </p>
+              
+              <div className="space-y-3">
+                {dataSharingSettings.map((category) => (
+                  <label key={category.id} className="flex items-center">
+                    <input 
+                      type="checkbox" 
+                      defaultChecked 
+                      className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" 
+                    />
+                    <span className="ml-2 text-sm">{category.name}</span>
+                  </label>
+                ))}
               </div>
+              
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="flex items-start">
+                  <Info className="w-5 h-5 text-blue-600 mr-2 mt-0.5" />
+                  <div>
+                    <p className="text-sm text-blue-900 font-medium">Export Format</p>
+                    <p className="text-sm text-blue-800">Data will be exported in JSON format with a summary PDF report.</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-3 pt-4">
+                <Button variant="outline" onClick={() => setShowDataExportModal(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleExportData}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Export Data
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-8">
+              <RefreshCw className="w-12 h-12 text-primary-600 mx-auto mb-4 animate-spin" />
+              <h4 className="text-lg font-semibold text-gray-900 mb-2">Preparing Your Data</h4>
+              <p className="text-gray-600 mb-4">Please wait while we compile your health information...</p>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-primary-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${exportProgress}%` }}
+                ></div>
+              </div>
+              <p className="text-sm text-gray-500 mt-2">{exportProgress}% complete</p>
             </div>
-          </div>
-          
-          <div className="flex justify-end space-x-3 pt-4">
-            <Button variant="outline" onClick={() => setShowDataExportModal(false)}>
-              Cancel
-            </Button>
-            <Button onClick={() => setShowDataExportModal(false)}>
-              <Download className="w-4 h-4 mr-2" />
-              Export Data
-            </Button>
-          </div>
+          )}
         </div>
       </div>
     </div>
@@ -295,6 +566,8 @@ export const Privacy: React.FC = () => {
             </label>
             <input
               type="text"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
               placeholder="DELETE"
             />
@@ -304,9 +577,69 @@ export const Privacy: React.FC = () => {
             <Button variant="outline" onClick={() => setShowDeleteModal(false)}>
               Cancel
             </Button>
-            <Button variant="danger" onClick={() => setShowDeleteModal(false)}>
+            <Button 
+              variant="danger" 
+              onClick={handleDeleteAccount}
+              disabled={deleteConfirmText !== 'DELETE'}
+            >
               <Trash2 className="w-4 h-4 mr-2" />
               Delete Account
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const PrivacySettingsModal = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-bold text-gray-900">Privacy Settings</h3>
+            <button
+              onClick={() => setShowPrivacySettingsModal(false)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+        
+        <div className="p-6 space-y-6">
+          {privacySettings.map((setting) => (
+            <div key={setting.id} className="border border-gray-200 rounded-lg p-4">
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <h4 className="font-medium text-gray-900">{setting.name}</h4>
+                  <p className="text-sm text-gray-600">{setting.description}</p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {setting.options.map((option) => (
+                  <label key={option} className="flex items-center">
+                    <input
+                      type="radio"
+                      name={setting.id}
+                      value={option}
+                      checked={setting.current === option}
+                      onChange={(e) => handlePrivacySettingChange(setting.id, e.target.value)}
+                      className="mr-2"
+                    />
+                    <span className="text-sm">{option}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
+          
+          <div className="flex justify-end space-x-3 pt-4">
+            <Button variant="outline" onClick={() => setShowPrivacySettingsModal(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => setShowPrivacySettingsModal(false)}>
+              <Save className="w-4 h-4 mr-2" />
+              Save Settings
             </Button>
           </div>
         </div>
@@ -336,12 +669,16 @@ export const Privacy: React.FC = () => {
                 <Shield className="w-8 h-8 text-green-600" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-gray-900">Privacy Score: 85/100</h3>
-                <p className="text-gray-600">Your privacy settings are well configured</p>
+                <h3 className="text-xl font-bold text-gray-900">Privacy Score: {privacyScore}/100</h3>
+                <p className="text-gray-600">
+                  {privacyScore >= 80 ? 'Your privacy settings are well configured' :
+                   privacyScore >= 60 ? 'Your privacy settings could be improved' :
+                   'Consider strengthening your privacy settings'}
+                </p>
               </div>
             </div>
             <div className="text-right">
-              <Button variant="outline">
+              <Button variant="outline" onClick={handleImproveScore}>
                 <Settings className="w-4 h-4 mr-2" />
                 Improve Score
               </Button>
@@ -379,7 +716,7 @@ export const Privacy: React.FC = () => {
         <div className="space-y-6">
           {/* Quick Actions */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="hover:shadow-md transition-shadow cursor-pointer">
+            <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={handleViewMyData}>
               <CardContent className="p-6 text-center">
                 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
                   <Eye className="w-6 h-6 text-blue-600" />
@@ -425,7 +762,12 @@ export const Privacy: React.FC = () => {
                     </div>
                     <div className="text-right">
                       <Badge variant="info" size="sm">{setting.current}</Badge>
-                      <Button variant="ghost" size="sm" className="ml-2">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="ml-2"
+                        onClick={() => setShowPrivacySettingsModal(true)}
+                      >
                         <Settings className="w-4 h-4" />
                       </Button>
                     </div>
@@ -463,7 +805,7 @@ export const Privacy: React.FC = () => {
       {activeTab === 'data' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {dataCategories.map((category) => (
+            {dataSharingSettings.map((category) => (
               <Card key={category.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between mb-4">
@@ -476,7 +818,7 @@ export const Privacy: React.FC = () => {
                         <p className="text-sm text-gray-600">{category.description}</p>
                       </div>
                     </div>
-                    <Button variant="ghost" size="sm">
+                    <Button variant="ghost" size="sm" onClick={handleViewMyData}>
                       <Eye className="w-4 h-4" />
                     </Button>
                   </div>
@@ -539,9 +881,14 @@ export const Privacy: React.FC = () => {
                     </label>
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {dataCategories.slice(0, 4).map((category) => (
+                    {dataSharingSettings.slice(0, 4).map((category) => (
                       <label key={category.id} className="flex items-center text-sm">
-                        <input type="checkbox" defaultChecked className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 mr-2" />
+                        <input 
+                          type="checkbox" 
+                          checked={category.sharing.healthcare_providers}
+                          onChange={(e) => handleDataSharingChange(category.id, 'healthcare_providers', e.target.checked)}
+                          className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 mr-2" 
+                        />
                         {category.name}
                       </label>
                     ))}
@@ -624,9 +971,22 @@ export const Privacy: React.FC = () => {
                       <Badge variant={consent.status === 'Active' ? 'success' : 'danger'} size="sm">
                         {consent.status}
                       </Badge>
-                      <Button variant="ghost" size="sm">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => setSelectedConsent(consent.id)}
+                      >
                         <FileText className="w-4 h-4" />
                       </Button>
+                      {consent.type === 'Marketing Communications' && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleConsentUpdate(consent.id, consent.status === 'Active' ? 'Declined' : 'Active')}
+                        >
+                          {consent.status === 'Active' ? 'Decline' : 'Accept'}
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -652,12 +1012,16 @@ export const Privacy: React.FC = () => {
                     <div>
                       <h4 className="font-medium text-gray-900">Two-Factor Authentication</h4>
                       <p className="text-sm text-gray-600">
-                        {user?.twoFactorEnabled ? 'Enabled' : 'Add an extra layer of security to your account'}
+                        {user?.two_factor_enabled ? 'Enabled' : 'Add an extra layer of security to your account'}
                       </p>
                     </div>
                   </div>
-                  <Button variant={user?.twoFactorEnabled ? 'outline' : 'primary'} size="sm">
-                    {user?.twoFactorEnabled ? 'Manage' : 'Enable'}
+                  <Button 
+                    variant={user?.two_factor_enabled ? 'outline' : 'primary'} 
+                    size="sm"
+                    onClick={user?.two_factor_enabled ? handleDisableTwoFactor : handleEnableTwoFactor}
+                  >
+                    {user?.two_factor_enabled ? 'Disable' : 'Enable'}
                   </Button>
                 </div>
 
@@ -668,12 +1032,16 @@ export const Privacy: React.FC = () => {
                     <div>
                       <h4 className="font-medium text-gray-900">Biometric Authentication</h4>
                       <p className="text-sm text-gray-600">
-                        {user?.biometricEnabled ? 'Enabled' : 'Use fingerprint or face recognition to sign in'}
+                        {user?.biometric_enabled ? 'Enabled' : 'Use fingerprint or face recognition to sign in'}
                       </p>
                     </div>
                   </div>
-                  <Button variant={user?.biometricEnabled ? 'outline' : 'primary'} size="sm">
-                    {user?.biometricEnabled ? 'Manage' : 'Enable'}
+                  <Button 
+                    variant={user?.biometric_enabled ? 'outline' : 'primary'} 
+                    size="sm"
+                    onClick={user?.biometric_enabled ? handleDisableBiometric : handleEnableBiometric}
+                  >
+                    {user?.biometric_enabled ? 'Disable' : 'Enable'}
                   </Button>
                 </div>
 
@@ -730,8 +1098,10 @@ export const Privacy: React.FC = () => {
       )}
 
       {/* Modals */}
+      {showViewDataModal && <ViewDataModal />}
       {showDataExportModal && <DataExportModal />}
       {showDeleteModal && <DeleteDataModal />}
+      {showPrivacySettingsModal && <PrivacySettingsModal />}
     </div>
   );
 };
