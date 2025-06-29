@@ -211,6 +211,21 @@ const mockMessages = {
       isEdited: false,
     },
   ],
+  '3': [
+    {
+      id: '8',
+      content: 'Your recent EKG results look good. Let\'s schedule a follow-up in 3 months.',
+      senderId: '4',
+      senderName: 'Dr. Michael Chen',
+      senderRole: 'doctor',
+      timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+      isRead: true,
+      priority: 'normal',
+      attachments: [],
+      reactions: [],
+      isEdited: false,
+    },
+  ],
 };
 
 const mockNotifications = [
@@ -269,6 +284,7 @@ export const Messages: React.FC = () => {
   const [showNotifications, setShowNotifications] = React.useState(false);
   const [showAttachmentMenu, setShowAttachmentMenu] = React.useState(false);
   const [messagePriority, setMessagePriority] = React.useState<'normal' | 'high' | 'urgent'>('normal');
+  const [messages, setMessages] = React.useState(mockMessages);
 
   const filteredConversations = mockConversations.filter(conversation => {
     const matchesSearch = conversation.participants.some(p => 
@@ -288,7 +304,7 @@ export const Messages: React.FC = () => {
     ? mockConversations.find(c => c.id === selectedConversation)
     : null;
 
-  const currentMessages = selectedConversation ? mockMessages[selectedConversation] || [] : [];
+  const currentMessages = selectedConversation ? messages[selectedConversation] || [] : [];
 
   const getParticipantIcon = (role: string) => {
     switch (role) {
@@ -318,22 +334,34 @@ export const Messages: React.FC = () => {
   };
 
   const handleSendMessage = () => {
-    if (!newMessage.trim() || !selectedConversation) return;
+    if (!newMessage.trim() || !selectedConversation || !user) return;
 
-    // In a real app, this would send the message to the backend
-    console.log('Sending message:', {
-      conversationId: selectedConversation,
-      content: newMessage,
+    // Create new message
+    const newMsg = {
+      id: `msg_${Date.now()}`,
+      content: newMessage.trim(),
+      senderId: user.id,
+      senderName: `${user.first_name} ${user.last_name}`,
+      senderRole: user.role,
+      timestamp: new Date(),
+      isRead: true,
       priority: messagePriority,
-      senderId: user?.id,
-    });
+      attachments: [],
+      reactions: [],
+      isEdited: false,
+    };
+
+    // Add message to the conversation
+    setMessages(prev => ({
+      ...prev,
+      [selectedConversation]: [...(prev[selectedConversation] || []), newMsg]
+    }));
 
     // Create notification for recipient
     const conversation = mockConversations.find(c => c.id === selectedConversation);
     if (conversation) {
       const recipient = conversation.participants.find(p => p.id !== user?.id);
       if (recipient) {
-        // Trigger notification
         console.log('Creating notification for:', recipient.name);
       }
     }
@@ -360,7 +388,6 @@ export const Messages: React.FC = () => {
       e.preventDefault();
       
       if (formData.recipient && formData.subject && formData.message) {
-        // In a real app, this would create a new conversation
         console.log('Creating new conversation:', formData);
         setShowNewMessageModal(false);
         setFormData({ recipient: '', subject: '', message: '', priority: 'normal' });
