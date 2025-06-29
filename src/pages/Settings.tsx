@@ -33,6 +33,8 @@ import {
   LogOut,
   Plus,
   Minus,
+  CheckCircle,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -44,44 +46,80 @@ export const Settings: React.FC = () => {
   const { user, updateUser, logout, enableTwoFactor, disableTwoFactor } = useAuth();
   const [activeTab, setActiveTab] = React.useState<'profile' | 'health' | 'privacy' | 'security' | 'notifications' | 'account'>('profile');
   const [isEditing, setIsEditing] = React.useState(false);
+  const [isSaving, setIsSaving] = React.useState(false);
+  const [saveSuccess, setSaveSuccess] = React.useState(false);
+  const [saveError, setSaveError] = React.useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = React.useState(false);
   const [showTwoFactorModal, setShowTwoFactorModal] = React.useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = React.useState(false);
+
   const [formData, setFormData] = React.useState({
-    firstName: user?.firstName || '',
-    lastName: user?.lastName || '',
+    firstName: user?.first_name || '',
+    lastName: user?.last_name || '',
     email: user?.email || '',
     phone: user?.phone || '',
-    dateOfBirth: user?.dateOfBirth || '',
-    bio: '',
+    dateOfBirth: user?.date_of_birth || '',
+    bio: user?.bio || '',
     emergencyContact: {
-      name: '',
-      relationship: '',
-      phone: '',
+      name: user?.emergency_contact?.name || '',
+      relationship: user?.emergency_contact?.relationship || '',
+      phone: user?.emergency_contact?.phone || '',
     },
     address: {
-      street: '',
-      city: '',
-      state: '',
-      zipCode: '',
+      street: user?.address?.street || '',
+      city: user?.address?.city || '',
+      state: user?.address?.state || '',
+      zipCode: user?.address?.zipCode || '',
     },
     insurance: {
-      provider: '',
-      policyNumber: '',
-      groupNumber: '',
+      provider: user?.insurance_info?.provider || '',
+      policyNumber: user?.insurance_info?.policyNumber || '',
+      groupNumber: user?.insurance_info?.groupNumber || '',
     },
     medicalInfo: {
-      bloodType: '',
-      allergies: [] as string[],
-      medications: [] as string[],
-      conditions: [] as string[],
+      bloodType: user?.medical_info?.bloodType || '',
+      allergies: user?.medical_info?.allergies || [],
+      medications: user?.medical_info?.medications || [],
+      conditions: user?.medical_info?.conditions || [],
+    },
+    preferences: {
+      privacy: {
+        shareWithProviders: user?.preferences?.privacy?.shareWithProviders ?? true,
+        shareForResearch: user?.preferences?.privacy?.shareForResearch ?? false,
+        marketingCommunications: user?.preferences?.privacy?.marketingCommunications ?? false,
+      },
+      notifications: {
+        email: user?.preferences?.notifications?.email ?? true,
+        sms: user?.preferences?.notifications?.sms ?? true,
+        push: user?.preferences?.notifications?.push ?? true,
+      },
     },
   });
+
+  // Track changes to form data
+  React.useEffect(() => {
+    const hasChanges = 
+      formData.firstName !== (user?.first_name || '') ||
+      formData.lastName !== (user?.last_name || '') ||
+      formData.phone !== (user?.phone || '') ||
+      formData.dateOfBirth !== (user?.date_of_birth || '') ||
+      formData.bio !== (user?.bio || '') ||
+      JSON.stringify(formData.emergencyContact) !== JSON.stringify(user?.emergency_contact || {}) ||
+      JSON.stringify(formData.address) !== JSON.stringify(user?.address || {}) ||
+      JSON.stringify(formData.insurance) !== JSON.stringify(user?.insurance_info || {}) ||
+      JSON.stringify(formData.medicalInfo) !== JSON.stringify(user?.medical_info || {}) ||
+      JSON.stringify(formData.preferences) !== JSON.stringify(user?.preferences || {});
+
+    setHasUnsavedChanges(hasChanges);
+  }, [formData, user]);
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({
       ...prev,
       [field]: value,
     }));
+    setSaveError(null);
+    setSaveSuccess(false);
   };
 
   const handleNestedInputChange = (section: string, field: string, value: any) => {
@@ -92,20 +130,100 @@ export const Settings: React.FC = () => {
         [field]: value,
       },
     }));
+    setSaveError(null);
+    setSaveSuccess(false);
   };
 
   const handleSave = async () => {
+    if (!hasUnsavedChanges) return;
+
     try {
-      await updateUser({
-        firstName: formData.firstName,
-        lastName: formData.lastName,
+      setIsSaving(true);
+      setSaveError(null);
+      setSaveSuccess(false);
+
+      // Prepare the update data
+      const updateData = {
+        first_name: formData.firstName,
+        last_name: formData.lastName,
         phone: formData.phone,
-        dateOfBirth: formData.dateOfBirth,
-      });
+        date_of_birth: formData.dateOfBirth,
+        bio: formData.bio,
+        emergency_contact: formData.emergencyContact,
+        address: formData.address,
+        insurance_info: formData.insurance,
+        medical_info: formData.medicalInfo,
+        preferences: formData.preferences,
+      };
+
+      await updateUser(updateData);
+      
+      setSaveSuccess(true);
       setIsEditing(false);
+      setHasUnsavedChanges(false);
+
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setSaveSuccess(false);
+      }, 3000);
+
     } catch (error) {
       console.error('Failed to update profile:', error);
+      setSaveError(error instanceof Error ? error.message : 'Failed to save changes. Please try again.');
+    } finally {
+      setIsSaving(false);
     }
+  };
+
+  const handleCancel = () => {
+    // Reset form data to original values
+    setFormData({
+      firstName: user?.first_name || '',
+      lastName: user?.last_name || '',
+      email: user?.email || '',
+      phone: user?.phone || '',
+      dateOfBirth: user?.date_of_birth || '',
+      bio: user?.bio || '',
+      emergencyContact: {
+        name: user?.emergency_contact?.name || '',
+        relationship: user?.emergency_contact?.relationship || '',
+        phone: user?.emergency_contact?.phone || '',
+      },
+      address: {
+        street: user?.address?.street || '',
+        city: user?.address?.city || '',
+        state: user?.address?.state || '',
+        zipCode: user?.address?.zipCode || '',
+      },
+      insurance: {
+        provider: user?.insurance_info?.provider || '',
+        policyNumber: user?.insurance_info?.policyNumber || '',
+        groupNumber: user?.insurance_info?.groupNumber || '',
+      },
+      medicalInfo: {
+        bloodType: user?.medical_info?.bloodType || '',
+        allergies: user?.medical_info?.allergies || [],
+        medications: user?.medical_info?.medications || [],
+        conditions: user?.medical_info?.conditions || [],
+      },
+      preferences: {
+        privacy: {
+          shareWithProviders: user?.preferences?.privacy?.shareWithProviders ?? true,
+          shareForResearch: user?.preferences?.privacy?.shareForResearch ?? false,
+          marketingCommunications: user?.preferences?.privacy?.marketingCommunications ?? false,
+        },
+        notifications: {
+          email: user?.preferences?.notifications?.email ?? true,
+          sms: user?.preferences?.notifications?.sms ?? true,
+          push: user?.preferences?.notifications?.push ?? true,
+        },
+      },
+    });
+    
+    setIsEditing(false);
+    setSaveError(null);
+    setSaveSuccess(false);
+    setHasUnsavedChanges(false);
   };
 
   const handleArrayAdd = (section: string, field: string, value: string) => {
@@ -238,19 +356,72 @@ export const Settings: React.FC = () => {
             Manage your profile, privacy, and security settings
           </p>
         </div>
-        {isEditing && (
-          <div className="flex items-center space-x-3">
-            <Button variant="outline" onClick={() => setIsEditing(false)}>
-              <X className="w-4 h-4 mr-2" />
-              Cancel
+        
+        {/* Save/Cancel Actions */}
+        <div className="flex items-center space-x-3">
+          {saveSuccess && (
+            <div className="flex items-center text-green-600">
+              <CheckCircle className="w-4 h-4 mr-2" />
+              <span className="text-sm">Changes saved successfully!</span>
+            </div>
+          )}
+          
+          {saveError && (
+            <div className="flex items-center text-red-600">
+              <AlertTriangle className="w-4 h-4 mr-2" />
+              <span className="text-sm">{saveError}</span>
+            </div>
+          )}
+          
+          {(isEditing || hasUnsavedChanges) && (
+            <>
+              <Button variant="outline" onClick={handleCancel} disabled={isSaving}>
+                <X className="w-4 h-4 mr-2" />
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleSave} 
+                disabled={!hasUnsavedChanges || isSaving}
+                className="min-w-[120px]"
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Changes
+                  </>
+                )}
+              </Button>
+            </>
+          )}
+          
+          {!isEditing && !hasUnsavedChanges && (
+            <Button variant="outline" onClick={() => setIsEditing(true)}>
+              <Edit className="w-4 h-4 mr-2" />
+              Edit Profile
             </Button>
-            <Button onClick={handleSave}>
-              <Save className="w-4 h-4 mr-2" />
-              Save Changes
-            </Button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
+
+      {/* Unsaved Changes Warning */}
+      {hasUnsavedChanges && (
+        <Card className="bg-yellow-50 border-yellow-200">
+          <CardContent className="p-4">
+            <div className="flex items-center">
+              <AlertTriangle className="w-5 h-5 text-yellow-600 mr-3" />
+              <div>
+                <p className="text-yellow-900 font-medium">You have unsaved changes</p>
+                <p className="text-yellow-800 text-sm">Don't forget to save your changes before leaving this page.</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Sidebar Navigation */}
@@ -284,15 +455,7 @@ export const Settings: React.FC = () => {
             <div className="space-y-6">
               <Card>
                 <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-gray-900">Profile Information</h3>
-                    {!isEditing && (
-                      <Button variant="outline" onClick={() => setIsEditing(true)}>
-                        <Edit className="w-4 h-4 mr-2" />
-                        Edit Profile
-                      </Button>
-                    )}
-                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900">Profile Information</h3>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   {/* Profile Picture */}
@@ -301,16 +464,16 @@ export const Settings: React.FC = () => {
                       <div className="w-24 h-24 bg-primary-100 rounded-full flex items-center justify-center">
                         <User className="w-12 h-12 text-primary-600" />
                       </div>
-                      {isEditing && (
+                      {(isEditing || hasUnsavedChanges) && (
                         <button className="absolute -bottom-2 -right-2 w-8 h-8 bg-primary-600 text-white rounded-full flex items-center justify-center hover:bg-primary-700">
                           <Camera className="w-4 h-4" />
                         </button>
                       )}
                     </div>
                     <div>
-                      <h4 className="font-medium text-gray-900">{user?.firstName} {user?.lastName}</h4>
+                      <h4 className="font-medium text-gray-900">{formData.firstName} {formData.lastName}</h4>
                       <p className="text-sm text-gray-600 capitalize">{user?.role}</p>
-                      {isEditing && (
+                      {(isEditing || hasUnsavedChanges) && (
                         <div className="mt-2 space-x-2">
                           <Button variant="outline" size="sm">
                             <Upload className="w-4 h-4 mr-1" />
@@ -331,30 +494,30 @@ export const Settings: React.FC = () => {
                       label="First Name"
                       value={formData.firstName}
                       onChange={(e) => handleInputChange('firstName', e.target.value)}
-                      disabled={!isEditing}
+                      disabled={!isEditing && !hasUnsavedChanges}
                       leftIcon={<User className="w-4 h-4" />}
                     />
                     <Input
                       label="Last Name"
                       value={formData.lastName}
                       onChange={(e) => handleInputChange('lastName', e.target.value)}
-                      disabled={!isEditing}
+                      disabled={!isEditing && !hasUnsavedChanges}
                       leftIcon={<User className="w-4 h-4" />}
                     />
                     <Input
                       label="Email"
                       type="email"
                       value={formData.email}
-                      onChange={(e) => handleInputChange('email', e.target.value)}
-                      disabled={!isEditing}
+                      disabled={true} // Email should not be editable
                       leftIcon={<Mail className="w-4 h-4" />}
+                      helperText="Contact support to change your email address"
                     />
                     <Input
                       label="Phone"
                       type="tel"
                       value={formData.phone}
                       onChange={(e) => handleInputChange('phone', e.target.value)}
-                      disabled={!isEditing}
+                      disabled={!isEditing && !hasUnsavedChanges}
                       leftIcon={<Phone className="w-4 h-4" />}
                     />
                     <Input
@@ -362,7 +525,7 @@ export const Settings: React.FC = () => {
                       type="date"
                       value={formData.dateOfBirth}
                       onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
-                      disabled={!isEditing}
+                      disabled={!isEditing && !hasUnsavedChanges}
                       leftIcon={<Calendar className="w-4 h-4" />}
                     />
                   </div>
@@ -375,7 +538,7 @@ export const Settings: React.FC = () => {
                     <textarea
                       value={formData.bio}
                       onChange={(e) => handleInputChange('bio', e.target.value)}
-                      disabled={!isEditing}
+                      disabled={!isEditing && !hasUnsavedChanges}
                       rows={3}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-gray-50"
                       placeholder="Tell us a bit about yourself..."
@@ -395,14 +558,14 @@ export const Settings: React.FC = () => {
                       label="Name"
                       value={formData.emergencyContact.name}
                       onChange={(e) => handleNestedInputChange('emergencyContact', 'name', e.target.value)}
-                      disabled={!isEditing}
+                      disabled={!isEditing && !hasUnsavedChanges}
                       leftIcon={<User className="w-4 h-4" />}
                     />
                     <Input
                       label="Relationship"
                       value={formData.emergencyContact.relationship}
                       onChange={(e) => handleNestedInputChange('emergencyContact', 'relationship', e.target.value)}
-                      disabled={!isEditing}
+                      disabled={!isEditing && !hasUnsavedChanges}
                       leftIcon={<Users className="w-4 h-4" />}
                     />
                     <Input
@@ -410,7 +573,7 @@ export const Settings: React.FC = () => {
                       type="tel"
                       value={formData.emergencyContact.phone}
                       onChange={(e) => handleNestedInputChange('emergencyContact', 'phone', e.target.value)}
-                      disabled={!isEditing}
+                      disabled={!isEditing && !hasUnsavedChanges}
                       leftIcon={<Phone className="w-4 h-4" />}
                     />
                   </div>
@@ -428,7 +591,7 @@ export const Settings: React.FC = () => {
                       label="Street Address"
                       value={formData.address.street}
                       onChange={(e) => handleNestedInputChange('address', 'street', e.target.value)}
-                      disabled={!isEditing}
+                      disabled={!isEditing && !hasUnsavedChanges}
                       leftIcon={<MapPin className="w-4 h-4" />}
                     />
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -436,19 +599,19 @@ export const Settings: React.FC = () => {
                         label="City"
                         value={formData.address.city}
                         onChange={(e) => handleNestedInputChange('address', 'city', e.target.value)}
-                        disabled={!isEditing}
+                        disabled={!isEditing && !hasUnsavedChanges}
                       />
                       <Input
                         label="State"
                         value={formData.address.state}
                         onChange={(e) => handleNestedInputChange('address', 'state', e.target.value)}
-                        disabled={!isEditing}
+                        disabled={!isEditing && !hasUnsavedChanges}
                       />
                       <Input
                         label="ZIP Code"
                         value={formData.address.zipCode}
                         onChange={(e) => handleNestedInputChange('address', 'zipCode', e.target.value)}
-                        disabled={!isEditing}
+                        disabled={!isEditing && !hasUnsavedChanges}
                       />
                     </div>
                   </div>
@@ -474,7 +637,7 @@ export const Settings: React.FC = () => {
                       <select
                         value={formData.medicalInfo.bloodType}
                         onChange={(e) => handleNestedInputChange('medicalInfo', 'bloodType', e.target.value)}
-                        disabled={!isEditing}
+                        disabled={!isEditing && !hasUnsavedChanges}
                         className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-gray-50"
                       >
                         <option value="">Select blood type</option>
@@ -499,7 +662,7 @@ export const Settings: React.FC = () => {
                       {formData.medicalInfo.allergies.map((allergy, index) => (
                         <div key={index} className="flex items-center justify-between p-2 bg-red-50 border border-red-200 rounded-lg">
                           <span className="text-sm text-red-900">{allergy}</span>
-                          {isEditing && (
+                          {(isEditing || hasUnsavedChanges) && (
                             <button
                               onClick={() => handleArrayRemove('medicalInfo', 'allergies', index)}
                               className="text-red-600 hover:text-red-800"
@@ -509,7 +672,7 @@ export const Settings: React.FC = () => {
                           )}
                         </div>
                       ))}
-                      {isEditing && (
+                      {(isEditing || hasUnsavedChanges) && (
                         <div className="flex space-x-2">
                           <Input
                             placeholder="Add allergy..."
@@ -537,7 +700,7 @@ export const Settings: React.FC = () => {
                       {formData.medicalInfo.medications.map((medication, index) => (
                         <div key={index} className="flex items-center justify-between p-2 bg-blue-50 border border-blue-200 rounded-lg">
                           <span className="text-sm text-blue-900">{medication}</span>
-                          {isEditing && (
+                          {(isEditing || hasUnsavedChanges) && (
                             <button
                               onClick={() => handleArrayRemove('medicalInfo', 'medications', index)}
                               className="text-blue-600 hover:text-blue-800"
@@ -547,7 +710,7 @@ export const Settings: React.FC = () => {
                           )}
                         </div>
                       ))}
-                      {isEditing && (
+                      {(isEditing || hasUnsavedChanges) && (
                         <div className="flex space-x-2">
                           <Input
                             placeholder="Add medication..."
@@ -575,7 +738,7 @@ export const Settings: React.FC = () => {
                       {formData.medicalInfo.conditions.map((condition, index) => (
                         <div key={index} className="flex items-center justify-between p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
                           <span className="text-sm text-yellow-900">{condition}</span>
-                          {isEditing && (
+                          {(isEditing || hasUnsavedChanges) && (
                             <button
                               onClick={() => handleArrayRemove('medicalInfo', 'conditions', index)}
                               className="text-yellow-600 hover:text-yellow-800"
@@ -585,7 +748,7 @@ export const Settings: React.FC = () => {
                           )}
                         </div>
                       ))}
-                      {isEditing && (
+                      {(isEditing || hasUnsavedChanges) && (
                         <div className="flex space-x-2">
                           <Input
                             placeholder="Add condition..."
@@ -617,19 +780,19 @@ export const Settings: React.FC = () => {
                       label="Insurance Provider"
                       value={formData.insurance.provider}
                       onChange={(e) => handleNestedInputChange('insurance', 'provider', e.target.value)}
-                      disabled={!isEditing}
+                      disabled={!isEditing && !hasUnsavedChanges}
                     />
                     <Input
                       label="Policy Number"
                       value={formData.insurance.policyNumber}
                       onChange={(e) => handleNestedInputChange('insurance', 'policyNumber', e.target.value)}
-                      disabled={!isEditing}
+                      disabled={!isEditing && !hasUnsavedChanges}
                     />
                     <Input
                       label="Group Number"
                       value={formData.insurance.groupNumber}
                       onChange={(e) => handleNestedInputChange('insurance', 'groupNumber', e.target.value)}
-                      disabled={!isEditing}
+                      disabled={!isEditing && !hasUnsavedChanges}
                     />
                   </div>
                 </CardContent>
@@ -654,7 +817,11 @@ export const Settings: React.FC = () => {
                       <label className="relative inline-flex items-center cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={user?.preferences.privacy.shareWithProviders}
+                          checked={formData.preferences.privacy.shareWithProviders}
+                          onChange={(e) => handleNestedInputChange('preferences', 'privacy', {
+                            ...formData.preferences.privacy,
+                            shareWithProviders: e.target.checked
+                          })}
                           className="sr-only peer"
                         />
                         <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
@@ -669,7 +836,11 @@ export const Settings: React.FC = () => {
                       <label className="relative inline-flex items-center cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={user?.preferences.privacy.shareForResearch}
+                          checked={formData.preferences.privacy.shareForResearch}
+                          onChange={(e) => handleNestedInputChange('preferences', 'privacy', {
+                            ...formData.preferences.privacy,
+                            shareForResearch: e.target.checked
+                          })}
                           className="sr-only peer"
                         />
                         <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
@@ -684,7 +855,11 @@ export const Settings: React.FC = () => {
                       <label className="relative inline-flex items-center cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={user?.preferences.privacy.marketingCommunications}
+                          checked={formData.preferences.privacy.marketingCommunications}
+                          onChange={(e) => handleNestedInputChange('preferences', 'privacy', {
+                            ...formData.preferences.privacy,
+                            marketingCommunications: e.target.checked
+                          })}
                           className="sr-only peer"
                         />
                         <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
@@ -745,11 +920,11 @@ export const Settings: React.FC = () => {
                       <div>
                         <h4 className="font-medium text-gray-900">Two-Factor Authentication</h4>
                         <p className="text-sm text-gray-600">
-                          {user?.twoFactorEnabled ? 'Enabled' : 'Add an extra layer of security'}
+                          {user?.two_factor_enabled ? 'Enabled' : 'Add an extra layer of security'}
                         </p>
                       </div>
                     </div>
-                    {user?.twoFactorEnabled ? (
+                    {user?.two_factor_enabled ? (
                       <Button variant="outline" size="sm" onClick={() => disableTwoFactor()}>
                         Disable
                       </Button>
@@ -767,12 +942,12 @@ export const Settings: React.FC = () => {
                       <div>
                         <h4 className="font-medium text-gray-900">Biometric Authentication</h4>
                         <p className="text-sm text-gray-600">
-                          {user?.biometricEnabled ? 'Enabled' : 'Use fingerprint or face recognition'}
+                          {user?.biometric_enabled ? 'Enabled' : 'Use fingerprint or face recognition'}
                         </p>
                       </div>
                     </div>
                     <Button variant="outline" size="sm">
-                      {user?.biometricEnabled ? 'Disable' : 'Enable'}
+                      {user?.biometric_enabled ? 'Disable' : 'Enable'}
                     </Button>
                   </div>
                 </CardContent>
@@ -823,7 +998,11 @@ export const Settings: React.FC = () => {
                       <label className="relative inline-flex items-center cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={user?.preferences.notifications.email}
+                          checked={formData.preferences.notifications.email}
+                          onChange={(e) => handleNestedInputChange('preferences', 'notifications', {
+                            ...formData.preferences.notifications,
+                            email: e.target.checked
+                          })}
                           className="sr-only peer"
                         />
                         <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
@@ -838,7 +1017,11 @@ export const Settings: React.FC = () => {
                       <label className="relative inline-flex items-center cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={user?.preferences.notifications.sms}
+                          checked={formData.preferences.notifications.sms}
+                          onChange={(e) => handleNestedInputChange('preferences', 'notifications', {
+                            ...formData.preferences.notifications,
+                            sms: e.target.checked
+                          })}
                           className="sr-only peer"
                         />
                         <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
@@ -853,7 +1036,11 @@ export const Settings: React.FC = () => {
                       <label className="relative inline-flex items-center cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={user?.preferences.notifications.push}
+                          checked={formData.preferences.notifications.push}
+                          onChange={(e) => handleNestedInputChange('preferences', 'notifications', {
+                            ...formData.preferences.notifications,
+                            push: e.target.checked
+                          })}
                           className="sr-only peer"
                         />
                         <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
