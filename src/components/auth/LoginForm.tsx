@@ -226,15 +226,6 @@ export const LoginForm: React.FC = () => {
           </p>
         </div>
       </div>
-      <div className="mt-8 text-center">
-  <a href="https://bolt.new" target="_blank" rel="noopener noreferrer" className="inline-block">
-    <img
-      src="https://drive.google.com/file/d/1jhrXZgOTIVq9g1xNTibuQmJwe5QTqmqO/view?usp=drive_link" // Placeholder URL
-      alt="Powered by Bolt.new"
-      className="h-10"
-    />
-  </a>
-</div>
     </div>
     
 
