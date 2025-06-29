@@ -221,13 +221,27 @@ export const LoginForm: React.FC = () => {
         </Card>
         
         <div className="mt-6 text-center">
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-500 mb-4">
             Protected by industry-standard encryption and HIPAA compliance
           </p>
+          
+          {/* Bolt.new Badge */}
+          <div className="flex justify-center">
+            <a 
+              href="https://bolt.new" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="inline-block hover:opacity-80 transition-opacity"
+            >
+              <img
+                src="/src/assets/black_circle_360x360.svg"
+                alt="Built with Bolt.new"
+                className="h-12 w-12"
+              />
+            </a>
+          </div>
         </div>
       </div>
     </div>
-    
-
   );
 };
