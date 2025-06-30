@@ -234,7 +234,8 @@ export const LoginForm: React.FC = () => {
               className="inline-block hover:opacity-80 transition-opacity"
             >
               <img
-                src="/src/assets/black_circle_360x360.svg"
+                {/* src="/src/assets/black_circle_360x360.svg" */}
+                src="https://drive.google.com/file/d/1NUs4zAKlQGbmIohbEwd-LNOpxu0waMAZ/view?usp=drive_link"
                 alt="Built with Bolt.new"
                 className="h-12 w-12"
               />
