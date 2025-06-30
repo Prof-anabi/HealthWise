@@ -315,8 +315,7 @@ export const useAuthProvider = (): AuthContextType => {
           date_of_birth: userData.date_of_birth,
           phone: userData.phone,
           role: userData.role || 'patient',
-          preferences: {
-            language: 'en',
+          preferences: userData.preferences || {
             notifications: {
               email: true,
               sms: true,

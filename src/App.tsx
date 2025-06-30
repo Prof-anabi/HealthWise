@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthContext, useAuthProvider } from './hooks/useAuth';
 import { Layout } from './components/layout/Layout';
 import { LoginForm } from './components/auth/LoginForm';
+import { SignupForm } from './components/auth/SignupForm';
 import { Dashboard } from './pages/Dashboard';
 import { DoctorDashboard } from './pages/DoctorDashboard';
 import { NurseDashboard } from './pages/NurseDashboard';
@@ -45,6 +46,7 @@ function App() {
           {!authValue.isAuthenticated ? (
             <Routes>
               <Route path="/login" element={<LoginForm />} />
+              <Route path="/signup" element={<SignupForm />} />
               <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
           ) : (

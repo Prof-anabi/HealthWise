@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Mail, Lock, Fingerprint, Smartphone } from 'lucide-react';
+import { Mail, Lock, Fingerprint, Smartphone, Chrome, Apple } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Card, CardContent, CardHeader } from '../ui/Card';
@@ -53,6 +53,12 @@ export const LoginForm: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSocialLogin = (provider: 'google' | 'apple') => {
+    // In a real implementation, this would integrate with Supabase social auth
+    console.log(`Login with ${provider}`);
+    setError(`${provider} login will be implemented with Supabase social authentication`);
   };
 
   return (
@@ -194,14 +200,23 @@ export const LoginForm: React.FC = () => {
                 </div>
               </div>
               
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <Button variant="outline" className="w-full">
-                  <Fingerprint className="w-4 h-4 mr-2" />
-                  Biometric
+              <div className="mt-4 grid grid-cols-3 gap-3">
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => handleSocialLogin('google')}
+                >
+                  <Chrome className="w-4 h-4" />
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => handleSocialLogin('apple')}
+                >
+                  <Apple className="w-4 h-4" />
                 </Button>
                 <Button variant="outline" className="w-full">
-                  <Smartphone className="w-4 h-4 mr-2" />
-                  2FA
+                  <Fingerprint className="w-4 h-4" />
                 </Button>
               </div>
             </div>
@@ -210,7 +225,7 @@ export const LoginForm: React.FC = () => {
               <p className="text-sm text-gray-600">
                 Don't have an account?{' '}
                 <Link
-                  to="/register"
+                  to="/signup"
                   className="font-medium text-primary-600 hover:text-primary-500"
                 >
                   Sign up
@@ -234,8 +249,7 @@ export const LoginForm: React.FC = () => {
               className="inline-block hover:opacity-80 transition-opacity"
             >
               <img
-                
-                src="https://drive.google.com/file/d/1NUs4zAKlQGbmIohbEwd-LNOpxu0waMAZ/view?usp=drive_link"
+                src="/src/assets/black_circle_360x360.svg"
                 alt="Built with Bolt.new"
                 className="h-12 w-12"
               />
